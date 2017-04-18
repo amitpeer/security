@@ -1,76 +1,106 @@
 package com.company;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Scanner;
+import java.util.Map;
 
 public class Main {
 
+    static final int BLOCK_SIZE = 10;
+
     public static void main(String[] args) {
-        Scanner reader = new Scanner(System.in);
-        String pathToKey = "C:\\Users\\windows\\Desktop\\secuerityExamples\\key_example.txt";
-        String pathToText = "C:\\Users\\windows\\Desktop\\secuerityExamples\\plainMsg_example.txt";
-        String pathToVector = "C:\\Users\\windows\\Desktop\\secuerityExamples\\IV_example.txt";
-        String pathToEncryptionText = "C:\\Users\\windows\\Desktop\\secuerityExamples\\Encryption_example.txt";
-        writeByteArrayListToFile(pathToEncryptionText , subCbc10Encryption(pathToText, pathToVector, pathToKey));
-        //        String path = reader.next();
-        //        Path fileLocation = Paths.get(path);
-        //        try {
-        //            byte[] data = Files.readAllBytes(fileLocation);
-        //            String text = new String(data);
-        //            System.out.print(text);
-        //        } catch (IOException e) {
-        //            e.printStackTrace();
-        //        }
+        String pathToKey = "C:\\securityExamples\\key_example.txt";
+        String pathToText = "C:\\securityExamples\\plainMsg_example.txt";
+        String pathToVector = "C:\\securityExamples\\IV_example.txt";
+        String pathToEncryptionText = "C:\\securityExamples\\my_cipher.txt";
+        String pathToDecryptionText = "C:\\securityExamples\\my_text.txt";
+        writeByteArrayListToFile(pathToEncryptionText, subCbcEncryption(pathToText, pathToVector,
+                                                                        pathToKey, BLOCK_SIZE));
+        writeByteArrayListToFile(pathToDecryptionText, subCbcDecryption(pathToEncryptionText, pathToVector,
+                                                                        pathToKey, BLOCK_SIZE));
     }
 
     //Part A.a
-    //change's - return arrayList
-    private static ArrayList<byte[]> subCbc10Encryption(String textPath, String vectorPath, String keyPath) {
+    private static ArrayList<byte[]> subCbcEncryption(String textPath, String vectorPath, String keyPath, int
+            blockSize) {
         byte[] text = readFileToByteArray(textPath);
         byte[] vector = readFileToByteArray(vectorPath);
         HashMap<Byte, Byte> key = readKeyToHashMap(keyPath);
-        ArrayList<byte[]> textList = createByteList(text,10);
-        ArrayList<byte[]> cipher = new ArrayList<>();
+        ArrayList<byte[]> textList = createByteList(text, blockSize);
+        ArrayList<byte[]> cipher = new ArrayList<>(); //eventually this will hold the encrypted text
 
         //start CBC Encryption
         for (byte[] plainText : textList) {
+
             //do XOR for each byte with vector
             ArrayList<Byte> xorList = new ArrayList<>();
-            for (int i = 0; i < 10; i++) {
+            for (int i = 0; i < blockSize; i++) {
                 xorList.add((byte) (plainText[i] ^ vector[i]));
             }
 
-            //do encryption function
-            byte[] cipherText = new byte[10];
+            //do encryption function using the given key
+            byte[] cipherText = new byte[blockSize];
             int index = 0;
-            for(byte b : xorList){
+            for (byte b : xorList) {
                 cipherText[index] = key.getOrDefault(b, b);
                 index++;
             }
-
             cipher.add(cipherText);
 
-            //change vector to the recently encrypted text for the next iteration
+            //change vector to the last encrypted text for the next iteration
             vector = cipherText;
         }
         return cipher;
     }
 
-//    private static ArrayList<byte[]> subCbc10Decrtyption(String textPath, String vectorPath, String keyPath) {
-//        byte[] text = readFileToByteArray(textPath);
-//        byte[] vector = readFileToByteArray(vectorPath);
-//        HashMap<Byte, Byte> key = readKeyToHashMap(keyPath);
-//        ArrayList<byte[]> textList = createByteList(text,10);
-//
-//
-//
-//
-//    }
+    //Part A.b
+    private static ArrayList<byte[]> subCbcDecryption(String cipherPath, String vectorPath, String keyPath, int
+            blockSize) {
+        byte[] cipher = readFileToByteArray(cipherPath);
+        byte[] vector = readFileToByteArray(vectorPath);
+        HashMap<Byte, Byte> key = readKeyToHashMap(keyPath);
+
+        //Reverse key for decryption
+        Map<Byte, Byte> decryptionKey = new HashMap<>();
+        for (Map.Entry<Byte, Byte> entry : key.entrySet()) {
+            decryptionKey.put(entry.getValue(), entry.getKey());
+        }
+
+        ArrayList<byte[]> cipherList = createByteList(cipher, blockSize);
+        ArrayList<byte[]> text = new ArrayList<>(); //eventually this will hold the decrypted text
+
+        //start CBC Decryption
+        for (byte[] cipherText : cipherList) {
+
+            //do decryption function using the given key
+            byte[] plainText = new byte[blockSize];
+            int index = 0;
+            for (byte b : cipherText) {
+                plainText[index] = decryptionKey.getOrDefault(b, b);
+                index++;
+            }
+
+            //do XOR
+            for (int i = 0; i < blockSize; i++) {
+                plainText[i] = (byte) (plainText[i] ^ vector[i]);
+            }
+            text.add(trim(plainText));
+
+            //change vector to the cipherText for the next iteration
+            vector = cipherText;
+        }
+
+        return text;
+    }
 
     //creates a list of byte array.
     //each byte array is in the size of blockSize
@@ -97,20 +127,17 @@ public class Main {
     }
 
     //write to file function
-    private static void writeByteArrayListToFile(String path,ArrayList<byte[]> byteArrayList)
-    {
+    private static void writeByteArrayListToFile(String path, ArrayList<byte[]> byteArrayList) {
         String cipherString = "";
-        for(byte[] plainText : byteArrayList){
-            cipherString+= new String(plainText);
+        for (byte[] plainText : byteArrayList) {
+            cipherString += new String(plainText);
         }
-        try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(path)))
-        {
+        try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(path))) {
             writer.write(cipherString);
-        }
-        catch (IOException ex) {
+        } catch (IOException ex) {
             System.out.println(
                     "Error reading file '"
-                          );
+            );
         }
     }
 
@@ -169,5 +196,14 @@ public class Main {
         }
 
         return text;
+    }
+
+    private static byte[] trim(byte[] bytes) {
+        int i = bytes.length - 1;
+        while (i >= 0 && bytes[i] == 0) {
+            --i;
+        }
+
+        return Arrays.copyOf(bytes, i + 1);
     }
 }
