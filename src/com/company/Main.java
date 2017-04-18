@@ -1,9 +1,6 @@
 package com.company;
 
-import java.io.BufferedReader;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -15,10 +12,11 @@ public class Main {
 
     public static void main(String[] args) {
         Scanner reader = new Scanner(System.in);
-        String pathToKey = "C:\\Users\\amitp\\Documents\\security_examples\\key_example.txt";
-        String pathToText = "C:\\Users\\amitp\\Documents\\security_examples\\plainMsg_example.txt";
-        String pathToVector = "C:\\Users\\amitp\\Documents\\security_examples\\IV_example.txt";
-        subCbc10Encryption(pathToText, pathToVector, pathToKey);
+        String pathToKey = "C:\\Users\\windows\\Desktop\\secuerityExamples\\key_example.txt";
+        String pathToText = "C:\\Users\\windows\\Desktop\\secuerityExamples\\plainMsg_example.txt";
+        String pathToVector = "C:\\Users\\windows\\Desktop\\secuerityExamples\\IV_example.txt";
+        String pathToEncryptionText = "C:\\Users\\windows\\Desktop\\secuerityExamples\\Encryption_example.txt";
+        writeByteArrayListToFile(pathToEncryptionText , subCbc10Encryption(pathToText, pathToVector, pathToKey));
         //        String path = reader.next();
         //        Path fileLocation = Paths.get(path);
         //        try {
@@ -31,11 +29,12 @@ public class Main {
     }
 
     //Part A.a
-    private static void subCbc10Encryption(String textPath, String vectorPath, String keyPath) {
+    //change's - return arrayList
+    private static ArrayList<byte[]> subCbc10Encryption(String textPath, String vectorPath, String keyPath) {
         byte[] text = readFileToByteArray(textPath);
         byte[] vector = readFileToByteArray(vectorPath);
         HashMap<Byte, Byte> key = readKeyToHashMap(keyPath);
-        ArrayList<byte[]> textList = createByteList(text, 10);
+        ArrayList<byte[]> textList = createByteList(text,10);
         ArrayList<byte[]> cipher = new ArrayList<>();
 
         //start CBC Encryption
@@ -59,7 +58,19 @@ public class Main {
             //change vector to the recently encrypted text for the next iteration
             vector = cipherText;
         }
+        return cipher;
     }
+
+//    private static ArrayList<byte[]> subCbc10Decrtyption(String textPath, String vectorPath, String keyPath) {
+//        byte[] text = readFileToByteArray(textPath);
+//        byte[] vector = readFileToByteArray(vectorPath);
+//        HashMap<Byte, Byte> key = readKeyToHashMap(keyPath);
+//        ArrayList<byte[]> textList = createByteList(text,10);
+//
+//
+//
+//
+//    }
 
     //creates a list of byte array.
     //each byte array is in the size of blockSize
@@ -83,6 +94,24 @@ public class Main {
             byteList.add(byteArray);
         }
         return byteList;
+    }
+
+    //write to file function
+    private static void writeByteArrayListToFile(String path,ArrayList<byte[]> byteArrayList)
+    {
+        String cipherString = "";
+        for(byte[] plainText : byteArrayList){
+            cipherString+= new String(plainText);
+        }
+        try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(path)))
+        {
+            writer.write(cipherString);
+        }
+        catch (IOException ex) {
+            System.out.println(
+                    "Error reading file '"
+                          );
+        }
     }
 
     //creates the encryption key
