@@ -8,10 +8,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public class Main {
 
@@ -23,10 +20,19 @@ public class Main {
         String pathToVector = "C:\\securityExamples\\IV_example.txt";
         String pathToEncryptionText = "C:\\securityExamples\\my_cipher.txt";
         String pathToDecryptionText = "C:\\securityExamples\\my_text.txt";
-        writeByteArrayListToFile(pathToEncryptionText, subCbcEncryption(pathToText, pathToVector,
-                                                                        pathToKey, BLOCK_SIZE));
-        writeByteArrayListToFile(pathToDecryptionText, subCbcDecryption(pathToEncryptionText, pathToVector,
-                                                                        pathToKey, BLOCK_SIZE));
+
+        //part a testing
+//        writeByteArrayListToFile(pathToEncryptionText, subCbcEncryption(pathToText, pathToVector,
+//                                                                        pathToKey, BLOCK_SIZE));
+//        writeByteArrayListToFile(pathToDecryptionText, subCbcDecryption(pathToEncryptionText, pathToVector,
+//                                                                        pathToKey, BLOCK_SIZE));
+        Set<String> set = generatePerm("abcdefgh");
+        for( String permo : set)
+            System.out.println(permo);
+
+
+        //part b testing
+
     }
 
     //Part A.a
@@ -206,4 +212,77 @@ public class Main {
 
         return Arrays.copyOf(bytes, i + 1);
     }
+
+
+
+    //part b
+    //brute force attack
+    private static void cipher_textOnlyAttack(String cipherTextPath, String vectorPath)
+    {
+        byte[] cipher = readFileToByteArray(cipherTextPath);
+        byte[] vector = readFileToByteArray(vectorPath);
+        char[] permutation = "abcdefgh".toCharArray();
+        HashMap<Byte, Byte> potentialKeyMap = null;
+        Set<String> allKeysSet = generatePerm("abcdefgh");  //8! permo  =  40320
+        for(String potentialKey : allKeysSet)
+        {
+            int permoIndex = 0;
+            potentialKeyMap = new HashMap<>();
+            //create from each permutation a potential key
+            for(char ch : potentialKey.toCharArray())
+            {
+                String keyChar = potentialKey.substring(0,1);
+                byte[] keyMap = keyChar.getBytes();
+                byte[] valueMap = (""+ch).getBytes();
+                potentialKeyMap.put(keyMap[0],valueMap[0]);
+            }
+            //now check the key
+            if(checkKeyOnCipher(cipher,potentialKeyMap,vector))
+            {
+                writeKeyToFile(potentialKeyMap);
+                return;
+            }
+        }
+
+    }
+    //check the key - reduceMap needed
+    private static boolean checkKeyOnCipher(byte[] cipher,HashMap<Byte, Byte> potentialKeyMap , byte[] vector )
+    {
+        boolean ans = false;
+        return ans;
+
+    }
+
+    //write key to file
+    private static void writeKeyToFile(HashMap<Byte, Byte> potentialKeyMap)
+    {
+
+    }
+
+    public static Set<String> generatePerm(String input)
+    {
+        Set<String> set = new HashSet<String>();
+        if (input == "")
+            return set;
+        Character a = input.charAt(0);
+        if (input.length() > 1)
+        {
+            input = input.substring(1);
+            Set<String> permSet = generatePerm(input);
+            for (String x : permSet)
+            {
+                for (int i = 0; i <= x.length(); i++)
+                {
+                    String toAdd = x.substring(0, i) + a + x.substring(i);
+                    set.add(toAdd);
+                }
+            }
+        }
+        else
+        {
+            set.add(a + "");
+        }
+        return set;
+    }
+
 }
