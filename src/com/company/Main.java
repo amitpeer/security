@@ -153,7 +153,7 @@ public class Main {
 
     private static void loadDictionaryToMemory() {
         //load english dictionary to byte array
-        byte[] words = readFileToByteArray("./words.txt");
+        byte[] words = readFileToByteArray("src/com/company/words.txt");
 
         //remove all non-character
         for (byte k : words) {
