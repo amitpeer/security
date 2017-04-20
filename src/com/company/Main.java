@@ -18,7 +18,7 @@ import java.util.Set;
 public class Main {
 
     static final int BLOCK_SIZE = 10;
-    static final HashSet<Byte> WORDS = new HashSet<>();
+    static final HashSet<ArrayList<Byte>> WORDS = new HashSet<>();
 
     public static void main(String[] args) {
         String pathToKey = "C:\\securityExamples\\key_example.txt";
@@ -26,28 +26,25 @@ public class Main {
         String pathToVector = "C:\\securityExamples\\IV_example.txt";
         String pathToEncryptionText = "C:\\securityExamples\\my_cipher.txt";
         String pathToDecryptionText = "C:\\securityExamples\\my_text.txt";
+        String pathToCipher = "C:\\securityExamples\\additional_examples\\PartB\\cipher.txt";
+        String pathToVectorAttack = "C:\\securityExamples\\additional_examples\\PartB\\IV_short.txt";
 
         //part a testing
-        //        writeByteArrayListToFile(pathToEncryptionText, subCbcEncryption(pathToText, pathToVector,
+        //        writeByteArrayInArrayListToFile(pathToEncryptionText, subCbcEncryption(pathToText, pathToVector,
         //                                                                        pathToKey, BLOCK_SIZE));
-        //        writeByteArrayListToFile(pathToDecryptionText, subCbcDecryption(pathToEncryptionText, pathToVector,
+        //        writeByteArrayInArrayListToFile(pathToDecryptionText, subCbcDecryption(pathToEncryptionText, pathToVector,
         //                                                                        pathToKey, BLOCK_SIZE));
         //        Set<String> set = generatePerm("abcdefgh");
         //        for (String permo : set)
         //            System.out.println(permo);
 
         //part b testing
-
-        loadDictionaryToMemory();
-
+        cipherTextOnlyAttack(pathToCipher, pathToVectorAttack);
     }
 
     //Part A.a
-    private static ArrayList<byte[]> subCbcEncryption(String textPath, String vectorPath, String keyPath, int
-            blockSize) {
-        byte[] text = readFileToByteArray(textPath);
-        byte[] vector = readFileToByteArray(vectorPath);
-        HashMap<Byte, Byte> key = readKeyToHashMap(keyPath);
+    private static ArrayList<byte[]> subCbcEncryption(byte[] text, byte[] vector, HashMap<Byte, Byte> key,
+                                                      int blockSize) {
         ArrayList<byte[]> textList = createByteList(text, blockSize);
         ArrayList<byte[]> cipher = new ArrayList<>(); //eventually this will hold the encrypted text
 
@@ -76,12 +73,8 @@ public class Main {
     }
 
     //Part A.b
-    private static ArrayList<byte[]> subCbcDecryption(String cipherPath, String vectorPath, String keyPath, int
-            blockSize) {
-        byte[] cipher = readFileToByteArray(cipherPath);
-        byte[] vector = readFileToByteArray(vectorPath);
-        HashMap<Byte, Byte> key = readKeyToHashMap(keyPath);
-
+    private static ArrayList<byte[]> subCbcDecryption(byte[] cipher, byte[] vector, HashMap<Byte, Byte> key,
+                                                      int blockSize) {
         //Reverse key for decryption
         Map<Byte, Byte> decryptionKey = new HashMap<>();
         for (Map.Entry<Byte, Byte> entry : key.entrySet()) {
@@ -118,6 +111,7 @@ public class Main {
     //part B - brute force attack
     private static void cipherTextOnlyAttack(String cipherTextPath, String vectorPath) {
         loadDictionaryToMemory();
+        String pathToSave = "C:\\securityExamples\\additional_examples\\PartB\\my_key.txt";
         byte[] cipher = readFileToByteArray(cipherTextPath);
         byte[] vector = readFileToByteArray(vectorPath);
         char[] permutation = "abcdefgh".toCharArray();
@@ -135,38 +129,91 @@ public class Main {
             }
             //now check the key
             if (checkKeyOnCipher(cipher, potentialKeyMap, vector)) {
-                writeKeyToFile(potentialKeyMap);
+                writeKeyToFile(potentialKeyMap, pathToSave);
                 return;
             }
         }
     }
 
-
     //check the given key
     private static boolean checkKeyOnCipher(byte[] cipher, HashMap<Byte, Byte> potentialKey, byte[] vector) {
         boolean isCorrectKey = false;
 
+        //Decrypt text using the potential key
+        ArrayList<byte[]> text = subCbcDecryption(cipher, vector, potentialKey, BLOCK_SIZE);
 
+        //Put all words in one array list (because the arrays in text are in the size of block_size each)
+        ArrayList<Byte> allWords = new ArrayList<>();
+        for (byte[] bArray : text) {
+            for (byte b : bArray) {
+                allWords.add(b);
+            }
+        }
 
+        //Make HashSet of words out of the decrypted text (32 separates between words)
+        HashSet<ArrayList<Byte>> words = new HashSet<>();
+        ArrayList<Byte> word = new ArrayList<>();
+        for (byte b : allWords) {
+            if (b >=65) {
+                word.add(b);
+            } else {
+                words.add(word);
+                word = new ArrayList<>();
+            }
+        }
+
+        //check if the words are in english using the English dictionary loaded to memory
+        long numberOfEnglishWords = words.stream().filter(WORDS::contains).count();
+        if (numberOfEnglishWords >= (long) words.size() / 2) {
+            isCorrectKey = true;
+        }
         return isCorrectKey;
     }
 
     private static void loadDictionaryToMemory() {
         //load english dictionary to byte array
-        byte[] words = readFileToByteArray("src/com/company/words.txt");
+        byte[] words = readFileToByteArray("src/com/company/words2.txt");
 
-        //remove all non-character
-        for (byte k : words) {
-            if (k >= 65) {
-                WORDS.add(k);
+        //make int array list and remove empty entries
+        ArrayList<Byte> wordsIntList = new ArrayList<>();
+        for (byte b : words) {
+            if (b >= 65 || b == 13) {
+                wordsIntList.add(b);
             }
         }
 
+        //split for words by the new line delimiter (13)
+        ArrayList<Byte> word = new ArrayList<>();
+        for (byte b : wordsIntList) {
+            if (b != 13) { //new line delimiters
+                word.add(b);
+            } else {
+                WORDS.add(word);
+                word = new ArrayList<>();
+            }
+        }
     }
 
     //write key to file
-    private static void writeKeyToFile(HashMap<Byte, Byte> potentialKeyMap) {
+    private static void writeKeyToFile(HashMap<Byte, Byte> potentialKeyMap, String path) {
+        writeByteArrayListToFile(new ArrayList<Byte>(potentialKeyMap.keySet()), path);
+        writeByteArrayListToFile(new ArrayList<Byte>(potentialKeyMap.values()), path);
+    }
 
+    private static void writeByteArrayListToFile(ArrayList<Byte> bytes, String path) {
+        String toWrite;
+        byte[] byteArray = new byte[bytes.size()];
+        for (int i = 0; i < bytes.size(); i++) {
+            byteArray[i] = bytes.get(i);
+        }
+        toWrite = new String(byteArray);
+        try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(path))) {
+            writer.write(toWrite);
+        } catch (IOException ex) {
+            System.out.println(
+                    "Error reading file '"
+            );
+        }
     }
 
     //creates a list of byte array.
@@ -194,7 +241,7 @@ public class Main {
     }
 
     //write to file function
-    private static void writeByteArrayListToFile(String path, ArrayList<byte[]> byteArrayList) {
+    private static void writeByteArrayInArrayListToFile(ArrayList<byte[]> byteArrayList, String path) {
         String cipherString = "";
         for (byte[] plainText : byteArrayList) {
             cipherString += new String(plainText);
@@ -216,7 +263,7 @@ public class Main {
 
         //remove all non-character
         for (byte k : keyArray) {
-            if (k >= 65) {
+            if (k >= 41) {
                 keyList.add(k);
             }
         }
