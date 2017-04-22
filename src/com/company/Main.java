@@ -8,38 +8,43 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class Main {
 
     static final int BLOCK_SIZE = 10;
     static final HashSet<ArrayList<Byte>> WORDS = new HashSet<>();
+    static int permotationNumber = 0;
+    static int maximumWordsFromKey =0;
+    static HashMap<Byte,Byte> bestKey = new HashMap<>();
 
     public static void main(String[] args) {
-        String pathToKey = "C:\\securityExamples\\key_example.txt";
+        String pathToKey = "C:\\securityExamples\\examples_ascii\\PartB\\key_short.txt";
         String pathToText = "C:\\securityExamples\\plainMsg_example.txt";
-        String pathToVector = "C:\\securityExamples\\IV_example.txt";
-        String pathToEncryptionText = "C:\\securityExamples\\my_cipher.txt";
+
+        String pathToEncryptionText = "C:\\securityExamples\\additional_examples\\PartB\\my_cipher.txt";
         String pathToDecryptionText = "C:\\securityExamples\\my_text.txt";
-        String pathToCipher = "C:\\securityExamples\\additional_examples\\PartB\\cipher.txt";
-        String pathToVectorAttack = "C:\\securityExamples\\additional_examples\\PartB\\IV_short.txt";
+        String pathToCipher = "C:\\securityExamples\\examples_ascii\\PartB\\cipher.txt";
+        String pathToVectorAttack = "C:\\securityExamples\\examples_ascii\\PartB\\IV_short.txt";
 
         //part a testing
-        //        writeByteArrayInArrayListToFile(pathToEncryptionText, subCbcEncryption(pathToText, pathToVector,
-        //                                                                        pathToKey, BLOCK_SIZE));
-        //        writeByteArrayInArrayListToFile(pathToDecryptionText, subCbcDecryption(pathToEncryptionText, pathToVector,
-        //                                                                        pathToKey, BLOCK_SIZE));
-        //        Set<String> set = generatePerm("abcdefgh");
-        //        for (String permo : set)
-        //            System.out.println(permo);
+        HashMap<Byte,Byte> key = readKeyToHashMap(pathToKey);
+        byte[] vector = readFileToByteArray(pathToVectorAttack);
+        byte[] cipher = readFileToByteArray(pathToCipher);
+
+//                writeByteArrayInArrayListToFile(pathToEncryptionText, subCbcEncryption(pathToText, pathToVector,
+//                                                                                pathToKey, BLOCK_SIZE));
+//        writeByteArrayInArrayListToFile(subCbcDecryption(cipher, vector, key, BLOCK_SIZE),pathToDecryptionText);
+//        Set<String> set = generatePerm("abcdefgh");
+//        for (String permo : set)
+//            System.out.println(permo);
 
         //part b testing
         cipherTextOnlyAttack(pathToCipher, pathToVectorAttack);
+        writeByteArrayInArrayListToFile(subCbcDecryption(cipher,vector , bestKey, BLOCK_SIZE),pathToDecryptionText);
     }
 
     //Part A.a
@@ -111,24 +116,32 @@ public class Main {
     //part B - brute force attack
     private static void cipherTextOnlyAttack(String cipherTextPath, String vectorPath) {
         loadDictionaryToMemory();
+        HashMap<Byte,Byte> realKey = readKeyToHashMap("C:\\securityExamples\\additional_examples\\PartB\\key_short.txt");
         String pathToSave = "C:\\securityExamples\\additional_examples\\PartB\\my_key.txt";
         byte[] cipher = readFileToByteArray(cipherTextPath);
         byte[] vector = readFileToByteArray(vectorPath);
-        char[] permutation = "abcdefgh".toCharArray();
+        char[] keyValue = "abcdefgh".toCharArray();
         HashMap<Byte, Byte> potentialKeyMap = null;
         Set<String> allKeysSet = generatePerm("abcdefgh");  //8! permo  =  40320
         for (String potentialKey : allKeysSet) {
-            int permoIndex = 0;
+            int keyValueIndex = 0;
             potentialKeyMap = new HashMap<>();
             //create from each permutation a potential key
             for (char ch : potentialKey.toCharArray()) {
-                String keyChar = potentialKey.substring(0, 1);
-                byte[] keyMap = keyChar.getBytes();
+                char keyChar = keyValue[keyValueIndex];
+                byte[] keyMap = (""+keyChar).getBytes();
                 byte[] valueMap = ("" + ch).getBytes();
                 potentialKeyMap.put(keyMap[0], valueMap[0]);
+                keyValueIndex++;
             }
             //now check the key
-            if (checkKeyOnCipher(cipher, potentialKeyMap, vector)) {
+
+            //take only the first 10000 bytes
+            byte[] first100PacketsFromCipher  = new byte[1001];
+            for(int i=0; i<=1000 ; i++)
+                first100PacketsFromCipher[i] = cipher[i];
+
+            if (checkKeyOnCipher(first100PacketsFromCipher, potentialKeyMap, vector)) {
                 writeKeyToFile(potentialKeyMap, pathToSave);
                 return;
             }
@@ -154,6 +167,8 @@ public class Main {
         HashSet<ArrayList<Byte>> words = new HashSet<>();
         ArrayList<Byte> word = new ArrayList<>();
         for (byte b : allWords) {
+            if(words.size()>100)
+                break;
             if (b >=65) {
                 word.add(b);
             } else {
@@ -161,23 +176,47 @@ public class Main {
                 word = new ArrayList<>();
             }
         }
-
+        //for debag
+        permotationNumber++;
+        System.out.println(permotationNumber);
         //check if the words are in english using the English dictionary loaded to memory
-        long numberOfEnglishWords = words.stream().filter(WORDS::contains).count();
-        if (numberOfEnglishWords >= (long) words.size() / 2) {
-            isCorrectKey = true;
+        //long numberOfEnglishWords = words.stream().filter(WORDS::contains).count();
+        int numberOfEnglishWords =0;
+        for(ArrayList<Byte> wordInWords : words){
+
+           Stream<Byte> capitaleCheck = wordInWords.stream().map(b->(byte)(b+((byte)32)));
+            ArrayList<Byte> capitaleCheckList = new ArrayList<>();
+            capitaleCheck.parallel().forEachOrdered(capitaleCheckList::add);
+
+            if(WORDS.contains(wordInWords) || WORDS.contains(capitaleCheckList))
+                numberOfEnglishWords++;
+        }
+
+        ////////////***********testing witch permo is the real key...
+        HashMap<Byte,Byte> realKey = readKeyToHashMap("C:\\securityExamples\\additional_examples\\PartB\\key_short.txt");
+        List<Byte> values1 = new ArrayList<>(realKey.values());
+        List<Byte> values2 = new ArrayList<>(potentialKey.values());
+        if(values1.equals(values2))
+            System.out.println("he is here");
+
+
+
+
+        if (numberOfEnglishWords > maximumWordsFromKey) {
+            bestKey =  new HashMap<>(potentialKey);
+            maximumWordsFromKey = numberOfEnglishWords;
         }
         return isCorrectKey;
     }
 
     private static void loadDictionaryToMemory() {
         //load english dictionary to byte array
-        byte[] words = readFileToByteArray("src/com/company/words2.txt");
+        byte[] words = readFileToByteArray("src/com/company/dictionary.txt");
 
         //make int array list and remove empty entries
         ArrayList<Byte> wordsIntList = new ArrayList<>();
         for (byte b : words) {
-            if (b >= 65 || b == 13) {
+            if (b >= 65 || b < 33) {
                 wordsIntList.add(b);
             }
         }
@@ -185,7 +224,7 @@ public class Main {
         //split for words by the new line delimiter (13)
         ArrayList<Byte> word = new ArrayList<>();
         for (byte b : wordsIntList) {
-            if (b != 13) { //new line delimiters
+            if (b > 33) { //new line delimiters
                 word.add(b);
             } else {
                 WORDS.add(word);
