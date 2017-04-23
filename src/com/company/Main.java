@@ -2,7 +2,6 @@ package com.company;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
@@ -13,19 +12,54 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
 
 public class Main {
 
-    private static final int BLOCK_SIZE = 8128;
     private static final HashSet<ArrayList<Byte>> WORDS = new HashSet<>();
+    private static HashMap<Byte, Byte> bestKey = new HashMap<>();
+    private static int blockSize = 8128;
     private static int permotationNumber = 0;
     private static int maximumWordsFromKey = 0;
-    private static HashMap<Byte, Byte> bestKey = new HashMap<>();
 
     public static void main(String[] args) {
+
+        //        test();
+
+        List<String> argsList = Arrays.asList(args);
+        String algorithm = argsList.get(argsList.indexOf("-a") + 1);
+        String action = argsList.get(argsList.indexOf("-c") + 1);
+        String pathToText = argsList.get(argsList.indexOf("-t") + 1);
+        String pathToKey = argsList.get(argsList.indexOf("-k") + 1);
+        String pathToVector = argsList.get(argsList.indexOf("-v") + 1);
+        String pathToWrite = argsList.get(argsList.indexOf("-o") + 1);
+
+        byte[] text = readFileToByteArray(pathToText);
+        byte[] vector = readFileToByteArray(pathToVector);
+        HashMap<Byte, Byte> key = !pathToKey.equals("-a") ? readKeyToHashMap(pathToKey) : null;
+
+        if (algorithm.equals("sub_cbc_10")) {
+            blockSize = 10;
+        } else if (algorithm.equals("sub_cbc_52")) {
+            blockSize = 8128;
+        }
+        if (action.equals("encryption")) {
+            writeByteArrayInArrayListToFile(subCbcEncryption(text, vector, key), pathToWrite);
+            if (action.equals("decryption")) {
+                writeByteArrayInArrayListToFile(subCbcDecryption(text, vector, key), pathToWrite);
+            }
+            if (action.equals("attack") && algorithm.equals("sub_cbc_10")) {
+                cipherTextOnlyAttack(text, vector, pathToWrite);
+            } else if (action.equals("attack") && algorithm.equals("sub_cbc_52")) {
+                // part C.2
+            }
+        }
+    }
+
+    private static void test() {
         String pathToKey = "C:\\securityExamples\\examples_ascii\\PartB\\key_short.txt";
         String pathToText = "C:\\securityExamples\\plainMsg_example.txt";
 
@@ -40,35 +74,33 @@ public class Main {
         byte[] cipher = readFileToByteArray(pathToCipher);
 
         //                writeByteArrayInArrayListToFile(pathToEncryptionText, subCbcEncryption(pathToText, pathToVector,
-        //                                                                                pathToKey, BLOCK_SIZE));
-        //        writeByteArrayInArrayListToFile(subCbcDecryption(cipher, vector, key, BLOCK_SIZE),pathToDecryptionText);
-
+        //                                                                                pathToKey, blockSize));
+        //        writeByteArrayInArrayListToFile(subCbcDecryption(cipher, vector, key, blockSize),pathToDecryptionText);
 
         //part b testing
-//        cipherTextOnlyAttack(pathToCipher, pathToVectorAttack);
-//        writeByteArrayInArrayListToFile(subCbcDecryption(cipher, vector, bestKey, BLOCK_SIZE), pathToDecryptionText);
+        //        cipherTextOnlyAttack(pathToCipher, pathToVectorAttack);
+        //        writeByteArrayInArrayListToFile(subCbcDecryption(cipher, vector, bestKey, blockSize), pathToDecryptionText);
 
         //part c testing
         String pathToCAKey = "C:\\securityExamples\\examples_ascii\\PartC\\key_long.txt";
         String pathToACVector = "C:\\securityExamples\\examples_ascii\\PartC\\IV_long.txt";
-        String pathToCATextToEnc="C:\\securityExamples\\examples_ascii\\PartC\\known_plain_long.txt";
+        String pathToCATextToEnc = "C:\\securityExamples\\examples_ascii\\PartC\\known_plain_long.txt";
         String pathToCaEncr = "C:\\securityExamples\\examples_ascii\\PartC\\C_A_Encrypting.txt";
         String pathToCAdecry = "C:\\securityExamples\\examples_ascii\\PartC\\C_A_decrypting.txt";
         byte[] vectorLong = readFileToByteArray(pathToACVector);
         byte[] textLong = readFileToByteArray(pathToCATextToEnc);
         HashMap<Byte, Byte> keyLong = readKeyToHashMap(pathToCAKey);
-        writeByteArrayInArrayListToFile( subCbcEncryption(textLong, vectorLong,
-                                                                                                keyLong, BLOCK_SIZE),pathToCaEncr);
+        writeByteArrayInArrayListToFile(subCbcEncryption(textLong, vectorLong,
+                                                         keyLong), pathToCaEncr);
 
         String pathToCaCipher = "C:\\securityExamples\\examples_ascii\\PartC\\known_cipher.txt";
-        writeByteArrayInArrayListToFile( subCbcDecryption(readFileToByteArray(pathToCaCipher), vectorLong,
-                keyLong, BLOCK_SIZE),pathToCAdecry);
+        writeByteArrayInArrayListToFile(subCbcDecryption(readFileToByteArray(pathToCaCipher), vectorLong,
+                                                         keyLong), pathToCAdecry);
     }
 
     //Part A.a
-    private static ArrayList<byte[]> subCbcEncryption(byte[] text, byte[] vector, HashMap<Byte, Byte> key,
-                                                      int blockSize) {
-        ArrayList<byte[]> textList = createByteList(text, blockSize);
+    private static ArrayList<byte[]> subCbcEncryption(byte[] text, byte[] vector, HashMap<Byte, Byte> key) {
+        ArrayList<byte[]> textList = createByteList(text);
         ArrayList<byte[]> cipher = new ArrayList<>(); //eventually this will hold the encrypted text
 
         //start CBC Encryption
@@ -96,15 +128,14 @@ public class Main {
     }
 
     //Part A.b
-    private static ArrayList<byte[]> subCbcDecryption(byte[] cipher, byte[] vector, HashMap<Byte, Byte> key,
-                                                      int blockSize) {
+    private static ArrayList<byte[]> subCbcDecryption(byte[] cipher, byte[] vector, HashMap<Byte, Byte> key) {
         //Reverse key for decryption
         Map<Byte, Byte> decryptionKey = new HashMap<>();
         for (Map.Entry<Byte, Byte> entry : key.entrySet()) {
             decryptionKey.put(entry.getValue(), entry.getKey());
         }
 
-        ArrayList<byte[]> cipherList = createByteList(cipher, blockSize);
+        ArrayList<byte[]> cipherList = createByteList(cipher);
         ArrayList<byte[]> text = new ArrayList<>(); //eventually this will hold the decrypted text
 
         //start CBC Decryption
@@ -132,11 +163,9 @@ public class Main {
     }
 
     //part B - brute force attack
-    private static void cipherTextOnlyAttack(String cipherTextPath, String vectorPath) {
+    private static void cipherTextOnlyAttack(byte[] cipher, byte[] vector, String pathToWrite) {
         loadDictionaryToMemory();
 
-        byte[] cipher = readFileToByteArray(cipherTextPath);
-        byte[] vector = readFileToByteArray(vectorPath);
         char[] keyValue = "abcdefgh".toCharArray();
         HashMap<Byte, Byte> potentialKeyMap = null;
         Set<String> allKeysSet = generatePerm("abcdefgh");  //8! permo  =  40320
@@ -172,7 +201,7 @@ public class Main {
         }
 
         //write the found key to file
-        writeKeyToFile(bestKey);
+        writeKeyToFile(bestKey, pathToWrite);
     }
 
     //check the given key
@@ -180,7 +209,7 @@ public class Main {
         boolean isCorrectKey = false;
 
         //Decrypt text using the potential key
-        ArrayList<byte[]> text = subCbcDecryption(cipher, vector, potentialKey, BLOCK_SIZE);
+        ArrayList<byte[]> text = subCbcDecryption(cipher, vector, potentialKey);
 
         //Put all words in one array list (because the arrays in text are in the size of block_size each)
         ArrayList<Byte> allWords = new ArrayList<>();
@@ -253,7 +282,7 @@ public class Main {
     }
 
     //write key to file
-    private static void writeKeyToFile(HashMap<Byte, Byte> key) {
+    private static void writeKeyToFile(HashMap<Byte, Byte> key, String pathToWrite) {
         //        writeByteArrayListToFile(new ArrayList<>(key.keySet()), path);
         //        writeByteArrayListToFile(new ArrayList<>(key.values()), path);
         ArrayList<Byte> toWriteList = new ArrayList<>();
@@ -265,24 +294,17 @@ public class Main {
         });
 
         //write the list to text file
-        writeByteArrayListToFile(toWriteList);
+        writeByteArrayListToFile(toWriteList, pathToWrite);
     }
 
-    private static void writeByteArrayListToFile(ArrayList<Byte> bytes) {
-        String path = "";
-        try {
-            path = new File(".").getCanonicalPath().concat("\\key.txt");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
+    private static void writeByteArrayListToFile(ArrayList<Byte> bytes, String pathToWrite) {
         String toWrite;
         byte[] byteArray = new byte[bytes.size()];
         for (int i = 0; i < bytes.size(); i++) {
             byteArray[i] = bytes.get(i);
         }
         toWrite = new String(byteArray);
-        try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(path))) {
+        try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(pathToWrite))) {
             writer.write(toWrite);
         } catch (IOException ex) {
             System.out.println(
@@ -293,7 +315,7 @@ public class Main {
 
     //creates a list of byte array.
     //each byte array is in the size of blockSize
-    private static ArrayList<byte[]> createByteList(byte[] text, int blockSize) {
+    private static ArrayList<byte[]> createByteList(byte[] text) {
         ArrayList<byte[]> byteList = new ArrayList<>();
         int counter = 0;
         boolean isLastInserted = false;
