@@ -19,7 +19,7 @@ import java.util.stream.Stream;
 
 public class Main {
 
-    private static final int BLOCK_SIZE = 10;
+    private static final int BLOCK_SIZE = 8128;
     private static final HashSet<ArrayList<Byte>> WORDS = new HashSet<>();
     private static int permotationNumber = 0;
     private static int maximumWordsFromKey = 0;
@@ -42,13 +42,27 @@ public class Main {
         //                writeByteArrayInArrayListToFile(pathToEncryptionText, subCbcEncryption(pathToText, pathToVector,
         //                                                                                pathToKey, BLOCK_SIZE));
         //        writeByteArrayInArrayListToFile(subCbcDecryption(cipher, vector, key, BLOCK_SIZE),pathToDecryptionText);
-        //        Set<String> set = generatePerm("abcdefgh");
-        //        for (String permo : set)
-        //            System.out.println(permo);
+
 
         //part b testing
-        cipherTextOnlyAttack(pathToCipher, pathToVectorAttack);
-        writeByteArrayInArrayListToFile(subCbcDecryption(cipher, vector, bestKey, BLOCK_SIZE), pathToDecryptionText);
+//        cipherTextOnlyAttack(pathToCipher, pathToVectorAttack);
+//        writeByteArrayInArrayListToFile(subCbcDecryption(cipher, vector, bestKey, BLOCK_SIZE), pathToDecryptionText);
+
+        //part c testing
+        String pathToCAKey = "C:\\securityExamples\\examples_ascii\\PartC\\key_long.txt";
+        String pathToACVector = "C:\\securityExamples\\examples_ascii\\PartC\\IV_long.txt";
+        String pathToCATextToEnc="C:\\securityExamples\\examples_ascii\\PartC\\known_plain_long.txt";
+        String pathToCaEncr = "C:\\securityExamples\\examples_ascii\\PartC\\C_A_Encrypting.txt";
+        String pathToCAdecry = "C:\\securityExamples\\examples_ascii\\PartC\\C_A_decrypting.txt";
+        byte[] vectorLong = readFileToByteArray(pathToACVector);
+        byte[] textLong = readFileToByteArray(pathToCATextToEnc);
+        HashMap<Byte, Byte> keyLong = readKeyToHashMap(pathToCAKey);
+        writeByteArrayInArrayListToFile( subCbcEncryption(textLong, vectorLong,
+                                                                                                keyLong, BLOCK_SIZE),pathToCaEncr);
+
+        String pathToCaCipher = "C:\\securityExamples\\examples_ascii\\PartC\\known_cipher.txt";
+        writeByteArrayInArrayListToFile( subCbcDecryption(readFileToByteArray(pathToCaCipher), vectorLong,
+                keyLong, BLOCK_SIZE),pathToCAdecry);
     }
 
     //Part A.a
