@@ -27,7 +27,6 @@ public class Main {
 
     //member for part C:
     private static HashMap<Byte, Byte> key_long = new HashMap<>();
-    private static int attackIndex;
 
     public static void main(String[] args) {
 
@@ -94,12 +93,12 @@ public class Main {
         byte[] vectorLong = readFileToByteArray(pathToACVector);
         byte[] textLong = readFileToByteArray(pathToCATextToEnc);
         HashMap<Byte, Byte> keyLong = readKeyToHashMap(pathToCAKey);
-//        writeByteArrayInArrayListToFile(subCbcEncryption(textLong, vectorLong,
-//                                                         keyLong), pathToCaEncr);
-//
-//        String pathToCaCipher = "C:\\securityExamples\\examples_ascii\\PartC\\known_cipher.txt";
-//        writeByteArrayInArrayListToFile(subCbcDecryption(readFileToByteArray(pathToCaCipher), vectorLong,
-//                                                         keyLong), pathToCAdecry);
+        //        writeByteArrayInArrayListToFile(subCbcEncryption(textLong, vectorLong,
+        //                                                         keyLong), pathToCaEncr);
+        //
+        //        String pathToCaCipher = "C:\\securityExamples\\examples_ascii\\PartC\\known_cipher.txt";
+        //        writeByteArrayInArrayListToFile(subCbcDecryption(readFileToByteArray(pathToCaCipher), vectorLong,
+        //                                                         keyLong), pathToCAdecry);
 
         String pathToCBcipher = "C:\\securityExamples\\examples_ascii\\PartC2\\unknown_cipher.txt";
         String pathToCBVector = "C:\\securityExamples\\examples_ascii\\PartC2\\IV_long.txt";
@@ -110,7 +109,6 @@ public class Main {
         byte[] plainTextMessage = readFileToByteArray(pathToCBplainTextMessage);
         byte[] cipherMessage = readFileToByteArray(pathToCBcipherMessage);
         knownPlainTextAttack(cipher2, vectorLong2, cipherMessage, plainTextMessage);
-
     }
 
     //Part A.a
@@ -226,7 +224,8 @@ public class Main {
         //Decrypt text using the potential key
         ArrayList<byte[]> text = subCbcDecryption(cipher, vector, potentialKey);
 
-        //Put all words in one array list (because the arrays in text are in the size of block_size each)
+        //Put all words in one array list
+        // (because the arrays in text are in the size of blockSize each)
         ArrayList<Byte> allWords = new ArrayList<>();
         for (byte[] bArray : text) {
             for (byte b : bArray) {
@@ -248,7 +247,7 @@ public class Main {
             }
         }
 
-        //for debag
+        ///for debag
         permotationNumber++;
         System.out.println(permotationNumber);
 
@@ -274,66 +273,76 @@ public class Main {
 
     //Part C
     private static void knownPlainTextAttack(byte[] cipher, byte[] vector, byte[] cipherMessage, byte[] plainTextMessage) {
+        //Make a partial key out of the cipher message + plainText message using XOR
         byte plainTextAfterXor;
         for (int i = 0; i < plainTextMessage.length; i++) {
             plainTextAfterXor = (byte) (plainTextMessage[i] ^ vector[i]);
-            if ((plainTextAfterXor >= 65 && plainTextAfterXor <= 90) || plainTextAfterXor >= 97 && plainTextAfterXor <= 122) {
+            if (plainTextAfterXor >= 65 && plainTextAfterXor <= 90
+                    || plainTextAfterXor >= 97 && plainTextAfterXor <= 122) {
                 key_long.put(plainTextAfterXor, cipherMessage[i]);
             }
         }
 
-        ArrayList<byte[]> partialText = subCbcDecryption(cipher, vector, key_long);
-        ArrayList<Byte> word = new ArrayList<>();
-        int blockIndex = 0;
-        int attackIndexVector = 0;
-        int attackIndexCipher = 0;
-        while (key_long.size() < 52 && blockIndex < partialText.size())  //maybe need more condition on length
-        {
-            attackIndexVector = 0;
-            for (byte b : partialText.get(blockIndex)) {
-                byte cipherByte = cipher[attackIndexCipher];
-                if ((cipherByte >= 65 && cipherByte <= 90) || (cipherByte >= 97 && cipherByte <= 122)) {
-                    insertKeyTuple(b, cipher[attackIndexCipher], vector[attackIndexVector]);
-                    blockSize = 8128;
-                }
-                attackIndexVector++;
-                attackIndexCipher++;
-            }
-            //change vector for the next block
-            ArrayList<byte[]> vectorList = subCbcEncryption(partialText.get(blockIndex), vector, key_long);
-            for (int i = 0; i < vector.length; i++) {
-                vector[i] = vectorList.get(0)[i];
-            }
+        //if the key is smaller than 42, we haven't found all of the key yet
+        //else, the key is ready to be written
+        if (key_long.size() < 42) {
+            //decrypt cipher message and separate into words
+            //find words that only 1 letter has not been changed in encryption algorithm
+            //use all other letters to check for real words instead
+            ArrayList<byte[]> plainText = subCbcDecryption(cipher, vector, key_long);
+            ArrayList<Byte> word = new ArrayList<>();
+            int blockIndex = 0;
+            int indexOfChange;
+            int indexInBlock;
+            byte[] plainTextBlock;
 
-            //next block
-            blockIndex++;
+            while (key_long.size() < 52 && blockIndex < plainText.size()) {
+                indexInBlock = 0;
+                plainTextBlock = plainText.get(blockIndex);
+                for (byte b : plainTextBlock) {
+                    if (b >= 65) {
+                        word.add(b);
+                    } else if (!word.isEmpty()) {
+                        indexOfChange = indexOfChangeIfOnlyOne(word, vector, indexInBlock);
+                        if (indexOfChange != -1) {
+                            tryFindCorrectWord(word, indexOfChange, indexInBlock, vector);
+                        }
+                        word = new ArrayList<>();
+                    }
+                    indexInBlock++;
+                }
+
+                //change vector for the next block
+                ArrayList<byte[]> vectorList = subCbcEncryption(plainText.get(blockIndex), vector, key_long);
+                for (int i = 0; i < vector.length; i++) {
+                    vector[i] = vectorList.get(0)[i];
+                }
+                blockIndex++;
+            }
         }
         writeKeyToFile(key_long, "C:\\securityExamples\\examples_ascii\\PartC2\\my_key.txt");
     }
 
-
-    private static void insertKeyTuple(byte byteToCheck, byte byteCipher, byte byteVector) {
-        byte[] singleByteVec = {byteVector};
-        byte[] singleByteToEncrypt = {byteToCheck};
+    private static void tryFindCorrectWord(ArrayList<Byte> word, int indexOfChange,
+                                           int indexInBlock, byte[] vector) {
         for (int i = 65; i <= 122; i++) {
-            if ((i >= 65 && i <= 90) || (i >= 97 && i <= 122)) { //between a-z or A-Z
+            if (i >= 65 && i <= 90 || i >= 97 && i <= 122) { //between a-z or A-Z
                 if (!key_long.containsKey((byte) i)) {
-                    HashMap<Byte, Byte> keyAsSingleByte = new HashMap<>();
-                    keyAsSingleByte.put((byte) i, byteCipher);
-                    blockSize = 1;
-                    ArrayList<byte[]> encrypted = subCbcEncryption(singleByteToEncrypt, singleByteVec, keyAsSingleByte);
-                    if (encrypted.get(0)[0] == byteCipher) {
-                        key_long.putAll(keyAsSingleByte);
-                        return;
+                    ArrayList<Byte> newWord = new ArrayList<>(word);
+                    newWord.set(indexOfChange, (byte) i);
+                    if (WORDS.contains(newWord)) {
+                        byte xor = (byte) (i ^ vector[indexInBlock]);
+                        //to be continue by alon the egg ?
                     }
                 }
             }
         }
     }
 
-    private static int numberOfChanges(ArrayList<Byte> word, byte[] vector) {
+    private static int indexOfChangeIfOnlyOne(ArrayList<Byte> word, byte[] vector,
+                                              int indexInBlock) {
         int counter = 0;
-        int vectorIndex = attackIndex - word.size() - 1;
+        int vectorIndex = indexInBlock - word.size() - 1;
         int wordIndex = 0;
         for (int i = 0; i < word.size(); i++) {
             if (!key_long.containsKey((byte) (word.get(i) ^ vector[vectorIndex]))) {
@@ -527,3 +536,62 @@ public class Main {
         return set;
     }
 }
+// PART C - OLD
+//
+//    private static void knownPlainTextAttack(byte[] cipher, byte[] vector, byte[] cipherMessage, byte[] plainTextMessage) {
+//        byte plainTextAfterXor;
+//        for (int i = 0; i < plainTextMessage.length; i++) {
+//            plainTextAfterXor = (byte) (plainTextMessage[i] ^ vector[i]);
+//            if ((plainTextAfterXor >= 65 && plainTextAfterXor <= 90) || plainTextAfterXor >= 97 && plainTextAfterXor <= 122) {
+//                key_long.put(plainTextAfterXor, cipherMessage[i]);
+//            }
+//        }
+//
+//        ArrayList<byte[]> partialText = subCbcDecryption(cipher, vector, key_long);
+//        ArrayList<Byte> word = new ArrayList<>();
+//        int blockIndex = 0;
+//        int attackIndexVector = 0;
+//        int attackIndexCipher = 0;
+//        while (key_long.size() < 52 && blockIndex < partialText.size())  //maybe need more condition on length
+//        {
+//            attackIndexVector = 0;
+//            for (byte b : partialText.get(blockIndex)) {
+//                byte cipherByte = cipher[attackIndexCipher];
+//                if ((cipherByte >= 65 && cipherByte <= 90) || (cipherByte >= 97 && cipherByte <= 122)) {
+//                    insertKeyTuple(b, cipher[attackIndexCipher], vector[attackIndexVector]);
+//                    blockSize = 8128;
+//                }
+//                attackIndexVector++;
+//                attackIndexCipher++;
+//            }
+//            //change vector for the next block
+//            ArrayList<byte[]> vectorList = subCbcEncryption(partialText.get(blockIndex), vector, key_long);
+//            for (int i = 0; i < vector.length; i++) {
+//                vector[i] = vectorList.get(0)[i];
+//            }
+//
+//            //next block
+//            blockIndex++;
+//        }
+//        writeKeyToFile(key_long, "C:\\securityExamples\\examples_ascii\\PartC2\\my_key.txt");
+//    }
+//
+//
+//    private static void insertKeyTuple(byte byteToCheck, byte byteCipher, byte byteVector) {
+//        byte[] singleByteVec = {byteVector};
+//        byte[] singleByteToEncrypt = {byteToCheck};
+//        for (int i = 65; i <= 122; i++) {
+//            if ((i >= 65 && i <= 90) || (i >= 97 && i <= 122)) { //between a-z or A-Z
+//                if (!key_long.containsKey((byte) i)) {
+//                    HashMap<Byte, Byte> keyAsSingleByte = new HashMap<>();
+//                    keyAsSingleByte.put((byte) i, byteCipher);
+//                    blockSize = 1;
+//                    ArrayList<byte[]> encrypted = subCbcEncryption(singleByteToEncrypt, singleByteVec, keyAsSingleByte);
+//                    if (encrypted.get(0)[0] == byteCipher) {
+//                        key_long.putAll(keyAsSingleByte);
+//                        return;
+//                    }
+//                }
+//            }
+//        }
+//    }
