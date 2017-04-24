@@ -24,10 +24,12 @@ public class Main {
     private static int blockSize = 8128;
     private static int permotationNumber = 0;
     private static int maximumWordsFromKey = 0;
+    //member for part C:
+    private static HashMap<Byte,Byte> key_long = new HashMap<>();
 
     public static void main(String[] args) {
 
-        //        test();
+                test();
 
         List<String> argsList = Arrays.asList(args);
         String algorithm = argsList.get(argsList.indexOf("-a") + 1);
@@ -90,12 +92,23 @@ public class Main {
         byte[] vectorLong = readFileToByteArray(pathToACVector);
         byte[] textLong = readFileToByteArray(pathToCATextToEnc);
         HashMap<Byte, Byte> keyLong = readKeyToHashMap(pathToCAKey);
-        writeByteArrayInArrayListToFile(subCbcEncryption(textLong, vectorLong,
-                                                         keyLong), pathToCaEncr);
+//        writeByteArrayInArrayListToFile(subCbcEncryption(textLong, vectorLong,
+//                                                         keyLong), pathToCaEncr);
+//
+//        String pathToCaCipher = "C:\\securityExamples\\examples_ascii\\PartC\\known_cipher.txt";
+//        writeByteArrayInArrayListToFile(subCbcDecryption(readFileToByteArray(pathToCaCipher), vectorLong,
+//                                                         keyLong), pathToCAdecry);
 
-        String pathToCaCipher = "C:\\securityExamples\\examples_ascii\\PartC\\known_cipher.txt";
-        writeByteArrayInArrayListToFile(subCbcDecryption(readFileToByteArray(pathToCaCipher), vectorLong,
-                                                         keyLong), pathToCAdecry);
+        String pathToCBcipher = "C:\\securityExamples\\examples_ascii\\PartC2\\unknown_cipher.txt";
+        String pathToCBVector = "C:\\securityExamples\\examples_ascii\\PartC2\\IV_long.txt";
+        String pathToCBcipherMessage = "C:\\securityExamples\\examples_ascii\\PartC2\\known_cipher.txt";
+        String pathToCBplainTextMessage = "C:\\securityExamples\\examples_ascii\\PartC2\\known_plain_long.txt";
+        byte[] vectorLong2 = readFileToByteArray(pathToCBVector);
+        byte[] cipher2 = readFileToByteArray(pathToCBcipher);
+        byte[] plainTextMessage = readFileToByteArray(pathToCBplainTextMessage);
+        byte[] cipherMessage = readFileToByteArray(pathToCBcipherMessage);
+        knownPlainTextAttack(cipher2,vectorLong2,plainTextMessage,cipherMessage);
+
     }
 
     //Part A.a
@@ -255,6 +268,18 @@ public class Main {
             maximumWordsFromKey = numberOfEnglishWords;
         }
         return isCorrectKey;
+    }
+
+    //Part C
+    private static void knownPlainTextAttack(byte[] cipher , byte[] vector, byte[] cipherMessage , byte[] plainTextMessage){
+        byte plainTextAfterXor;
+        for(int i = 0 ; i<plainTextMessage.length;i++)
+        {
+            plainTextAfterXor= (byte)(plainTextMessage[i] ^ vector[i]);
+            if(plainTextAfterXor>=65) {
+                key_long.put(plainTextAfterXor, cipherMessage[i]);
+            }
+        }
     }
 
     private static void loadDictionaryToMemory() {
