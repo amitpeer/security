@@ -24,12 +24,14 @@ public class Main {
     private static int blockSize = 8128;
     private static int permotationNumber = 0;
     private static int maximumWordsFromKey = 0;
+
     //member for part C:
-    private static HashMap<Byte,Byte> key_long = new HashMap<>();
+    private static HashMap<Byte, Byte> key_long = new HashMap<>();
+    private static int attackIndex;
 
     public static void main(String[] args) {
 
-                test();
+        test();
 
         List<String> argsList = Arrays.asList(args);
         String algorithm = argsList.get(argsList.indexOf("-a") + 1);
@@ -107,7 +109,7 @@ public class Main {
         byte[] cipher2 = readFileToByteArray(pathToCBcipher);
         byte[] plainTextMessage = readFileToByteArray(pathToCBplainTextMessage);
         byte[] cipherMessage = readFileToByteArray(pathToCBcipherMessage);
-        knownPlainTextAttack(cipher2,vectorLong2,plainTextMessage,cipherMessage);
+        knownPlainTextAttack(cipher2, vectorLong2, cipherMessage, plainTextMessage);
 
     }
 
@@ -271,15 +273,77 @@ public class Main {
     }
 
     //Part C
-    private static void knownPlainTextAttack(byte[] cipher , byte[] vector, byte[] cipherMessage , byte[] plainTextMessage){
+    private static void knownPlainTextAttack(byte[] cipher, byte[] vector, byte[] cipherMessage, byte[] plainTextMessage) {
         byte plainTextAfterXor;
-        for(int i = 0 ; i<plainTextMessage.length;i++)
-        {
-            plainTextAfterXor= (byte)(plainTextMessage[i] ^ vector[i]);
-            if(plainTextAfterXor>=65) {
+        for (int i = 0; i < plainTextMessage.length; i++) {
+            plainTextAfterXor = (byte) (plainTextMessage[i] ^ vector[i]);
+            if ((plainTextAfterXor >= 65 && plainTextAfterXor <= 90) || plainTextAfterXor >= 97 && plainTextAfterXor <= 122) {
                 key_long.put(plainTextAfterXor, cipherMessage[i]);
             }
         }
+
+        ArrayList<byte[]> partialText = subCbcDecryption(cipher, vector, key_long);
+        ArrayList<Byte> word = new ArrayList<>();
+        int blockIndex = 0;
+        int attackIndexVector = 0;
+        int attackIndexCipher = 0;
+        while (key_long.size() < 52 && blockIndex < partialText.size())  //maybe need more condition on length
+        {
+            attackIndexVector = 0;
+            for (byte b : partialText.get(blockIndex)) {
+                byte cipherByte = cipher[attackIndexCipher];
+                if ((cipherByte >= 65 && cipherByte <= 90) || (cipherByte >= 97 && cipherByte <= 122)) {
+                    insertKeyTuple(b, cipher[attackIndexCipher], vector[attackIndexVector]);
+                    blockSize = 8128;
+                }
+                attackIndexVector++;
+                attackIndexCipher++;
+            }
+            //change vector for the next block
+            ArrayList<byte[]> vectorList = subCbcEncryption(partialText.get(blockIndex), vector, key_long);
+            for (int i = 0; i < vector.length; i++) {
+                vector[i] = vectorList.get(0)[i];
+            }
+
+            //next block
+            blockIndex++;
+        }
+        writeKeyToFile(key_long, "C:\\securityExamples\\examples_ascii\\PartC2\\my_key.txt");
+    }
+
+
+    private static void insertKeyTuple(byte byteToCheck, byte byteCipher, byte byteVector) {
+        byte[] singleByteVec = {byteVector};
+        byte[] singleByteToEncrypt = {byteToCheck};
+        for (int i = 65; i <= 122; i++) {
+            if ((i >= 65 && i <= 90) || (i >= 97 && i <= 122)) { //between a-z or A-Z
+                if (!key_long.containsKey((byte) i)) {
+                    HashMap<Byte, Byte> keyAsSingleByte = new HashMap<>();
+                    keyAsSingleByte.put((byte) i, byteCipher);
+                    blockSize = 1;
+                    ArrayList<byte[]> encrypted = subCbcEncryption(singleByteToEncrypt, singleByteVec, keyAsSingleByte);
+                    if (encrypted.get(0)[0] == byteCipher) {
+                        key_long.putAll(keyAsSingleByte);
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    private static int numberOfChanges(ArrayList<Byte> word, byte[] vector) {
+        int counter = 0;
+        int vectorIndex = attackIndex - word.size() - 1;
+        int wordIndex = 0;
+        for (int i = 0; i < word.size(); i++) {
+            if (!key_long.containsKey((byte) (word.get(i) ^ vector[vectorIndex]))) {
+                counter++;
+                wordIndex = i;
+            }
+        }
+        if (counter == 1)
+            return wordIndex;
+        return -1;
     }
 
     private static void loadDictionaryToMemory() {
