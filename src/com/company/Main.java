@@ -282,7 +282,7 @@ public class Main {
         byte plainTextAfterXor;
         for (int i = 0; i < plainTextMessage.length; i++) {
             plainTextAfterXor = (byte) (plainTextMessage[i] ^ vector[i]);
-            if ((plainTextAfterXor >= 65 && plainTextAfterXor <= 90) || (plainTextAfterXor >= 97 && plainTextAfterXor <= 122)) {
+            if (plainTextAfterXor >= 65 && plainTextAfterXor <= 90 || plainTextAfterXor >= 97 && plainTextAfterXor <= 122) {
                 key_long.put(plainTextAfterXor, cipherMessage[i]);
             }
         }
@@ -295,6 +295,7 @@ public class Main {
 
         //load words dictionary
         loadDictionaryToMemory();
+
         //if the key is smaller than 42, we haven't found all of the key yet
         //else, the key is ready to be written
         if (key_long.size() < 52) {
@@ -315,11 +316,11 @@ public class Main {
                 for (byte b : plainTextBlock) {
                     if (b >= 65) {
                         word.add(b);
-                    } else if (word.size()>1) {
+                    } else if (word.size()>2) {
                         byte[] cipherBlock = cipherByBlocks.get(blockIndex);
                         indexOfChange = indexOfChangeIfOnlyOne(word, vector, cipherBlock,indexInBlock);
                         if (indexOfChange != -1) {
-                            tryFindCorrectWord(word, indexOfChange, indexInBlock, vector, cipherBlock);
+                            tryFindCorrectWord(word, indexOfChange, indexInBlock, cipherBlock, vector);
                         }
                         word = new ArrayList<>();
                     }
@@ -347,7 +348,8 @@ public class Main {
             byte keyLetter = entry.getKey();
             HashMap<Byte, Integer> keyLetterMap = entry.getValue();
             int maximum = 0;
-            //for wach letter check the best key
+
+            //for each letter check the best key
             for (Map.Entry<Byte, Integer> entryInMap : keyLetterMap.entrySet()) {
                 int keyletterValue = entryInMap.getValue();
                 if (maximum < keyletterValue) {
@@ -400,14 +402,15 @@ public class Main {
         }
     }
 
-    private static void putInDictionaryLetter(byte key, byte cipherLetter) {
-        int valueOfLetterInDic = ((HashMap<Byte, Integer>) letterChangedCount.values()).get(cipherLetter);
+    private static void putInDictionaryLetter(byte key, byte value) {
+        HashMap<Byte,Integer> valuesCountMap = letterChangedCount.getOrDefault(key, null);
+        int valueOfLetterInDic = valuesCountMap != null ? valuesCountMap.getOrDefault(value, 0) : 0;
         HashMap<Byte, Integer> apply = new HashMap<>();
         if (valueOfLetterInDic > 0) // if the letter exist
         {
-            apply.put(cipherLetter, valueOfLetterInDic + 1);
+            apply.put(value, valueOfLetterInDic + 1);
         } else {
-            apply.put(cipherLetter, 1);
+            apply.put(value, 1);
         }
         letterChangedCount.put(key, apply);
     }
@@ -419,8 +422,8 @@ public class Main {
         int wordIndex = 0;
         for (int i = 0; i < word.size(); i++) {
             byte letter = cipherBlock[vectorIndex];
-            if (letter==((byte) (word.get(i) ^ vector[vectorIndex])) &&
-                    (key_long.get(letter)!=null && key_long.get(letter)!=letter)) { //only if the letter is the same in the cipher (didn'y decrypted) and do no
+            if (letter== (byte) (word.get(i) ^ vector[vectorIndex]) &&
+                    key_long.get(letter)!=null && key_long.get(letter)!=letter) { //only if the letter is the same in the cipher (didn'y decrypted) and do no
                 //have the same key and value in the dictionary (for example O->0)
 
                 counter++;
