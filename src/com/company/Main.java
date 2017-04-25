@@ -25,6 +25,8 @@ public class Main {
     private static int permotationNumber = 0;
     private static int maximumWordsFromKey = 0;
     private static HashMap<Byte, HashMap<Byte, Integer>> letterChangedCount = new HashMap<>();
+    private static HashMap<String, Integer> letterChangeCount2 = new HashMap<>();
+    private static int counterOfEnglishWords = 0;
 
     //member for part C:
     private static HashMap<Byte, Byte> key_long = new HashMap<>();
@@ -303,7 +305,7 @@ public class Main {
             //find words that only 1 letter has not been changed in encryption algorithm
             //use all other letters to check for real words instead
             ArrayList<byte[]> plainText = subCbcDecryption(cipher, vector, key_long);
-            writeByteArrayInArrayListToFile(plainText,"C:\\securityExamples\\examples_ascii\\PartC2\\patial_decrypted_Text.txt");
+            writeByteArrayInArrayListToFile(plainText, "C:\\securityExamples\\examples_ascii\\PartC2\\patial_decrypted_Text.txt");
             int blockIndex = 0;
             int indexOfChange;
             int indexInBlock;
@@ -316,9 +318,9 @@ public class Main {
                 for (byte b : plainTextBlock) {
                     if (b >= 65) {
                         word.add(b);
-                    } else if (word.size()>2) {
+                    } else if (word.size() > 1) {
                         byte[] cipherBlock = cipherByBlocks.get(blockIndex);
-                        indexOfChange = indexOfChangeIfOnlyOne(word, vector, cipherBlock,indexInBlock);
+                        indexOfChange = indexOfChangeIfOnlyOne(word, vector, cipherBlock, indexInBlock);
                         if (indexOfChange != -1) {
                             tryFindCorrectWord(word, indexOfChange, indexInBlock, cipherBlock, vector);
                         }
@@ -326,10 +328,6 @@ public class Main {
                     }
                     indexInBlock++;
                 }
-                //before go to the next block:
-                // take the maximum of z from each X->(y,z) and put in the final key dictionary
-                putBestMatch();
-
                 //change vector for the next block
                 ArrayList<byte[]> vectorList = subCbcEncryption(plainText.get(blockIndex), vector, key_long);
                 for (int i = 0; i < vector.length; i++) {
@@ -337,6 +335,7 @@ public class Main {
                 }
                 blockIndex++;
             }
+            putBestMatch();
         }
         writeKeyToFile(key_long, "C:\\securityExamples\\examples_ascii\\PartC2\\my_key.txt");
     }
@@ -360,9 +359,7 @@ public class Main {
             if (valueForFinalKey != -1)
                 key_long.put(keyLetter, valueForFinalKey);
         }
-
     }
-
 
     //dividing byte[] to arrayList of byte[]
     //when all the byte[] elements in size of BlockSize
@@ -393,9 +390,11 @@ public class Main {
                     newWord.set(indexOfChange, xor);  //we check for word in dictionary so must xor it for the regular word
                     if (WORDS.contains(newWord)) {
                         //now put in the dictionary the letter
-                        byte cipherLetter = cipherBlock[indexInBlock-indexOfChange]; //the letter in the cipher is the value. X->Y (in cipher is the Y)
+                        byte cipherLetter = cipherBlock[indexInBlock - word.size() + indexOfChange]; //the letter in the cipher is
+                        counterOfEnglishWords++;
+                        // the value.
+                        // X->Y (in cipher is the Y)
                         putInDictionaryLetter(xor, cipherLetter);
-
                     }
                 }
             }
@@ -403,17 +402,27 @@ public class Main {
     }
 
     private static void putInDictionaryLetter(byte key, byte value) {
-        HashMap<Byte,Integer> valuesCountMap = letterChangedCount.getOrDefault(key, null);
-        int valueOfLetterInDic = valuesCountMap != null ? valuesCountMap.getOrDefault(value, 0) : 0;
-        HashMap<Byte, Integer> apply = new HashMap<>();
-        if (valueOfLetterInDic > 0) // if the letter exist
-        {
-            apply.put(value, valueOfLetterInDic + 1);
+        String keyValue = new String(new byte[]{key, 43, value});
+        int counter = letterChangeCount2.getOrDefault(keyValue, 0);
+        if (counter == 0) {
+            letterChangeCount2.put(keyValue, 1);
         } else {
-            apply.put(value, 1);
+            letterChangeCount2.put(keyValue, counter + 1);
         }
-        letterChangedCount.put(key, apply);
     }
+
+    //    private static void putInDictionaryLetter(byte key, byte value) {
+    //        HashMap<Byte, Integer> valuesCountMap = letterChangedCount.getOrDefault(key, null);
+    //        int counterOfLetterInDic = valuesCountMap != null ? valuesCountMap.getOrDefault(value, 0) : 0;
+    //        HashMap<Byte, Integer> apply = new HashMap<>();
+    //        if (counterOfLetterInDic > 0) // if the letter exist
+    //        {
+    //            apply.put(value, counterOfLetterInDic + 1);
+    //        } else {
+    //            apply.put(value, 1);
+    //        }
+    //        letterChangedCount.put(key, apply);
+    //    }
 
     private static int indexOfChangeIfOnlyOne(ArrayList<Byte> word, byte[] vector, byte[] cipherBlock,
                                               int indexInBlock) {
@@ -422,8 +431,8 @@ public class Main {
         int wordIndex = 0;
         for (int i = 0; i < word.size(); i++) {
             byte letter = cipherBlock[vectorIndex];
-            if (letter== (byte) (word.get(i) ^ vector[vectorIndex]) &&
-                    key_long.get(letter)!=null && key_long.get(letter)!=letter) { //only if the letter is the same in the cipher (didn'y decrypted) and do no
+            if (letter == (byte) (word.get(i) ^ vector[vectorIndex]) &&
+                    key_long.get(letter) != null && key_long.get(letter) != letter) { //only if the letter is the same in the cipher (didn'y decrypted) and do no
                 //have the same key and value in the dictionary (for example O->0)
 
                 counter++;
@@ -619,61 +628,93 @@ public class Main {
 
     // PART C - OLD
 
-//    private static void knownPlainTextAttack(byte[] cipher, byte[] vector, byte[] cipherMessage, byte[] plainTextMessage) {
-//        byte plainTextAfterXor;
-//        for (int i = 0; i < plainTextMessage.length; i++) {
-//            plainTextAfterXor = (byte) (plainTextMessage[i] ^ vector[i]);
-//            if ((plainTextAfterXor >= 65 && plainTextAfterXor <= 90) || plainTextAfterXor >= 97 && plainTextAfterXor <= 122) {
-//                key_long.put(plainTextAfterXor, cipherMessage[i]);
-//            }
-//        }
-//
-//        ArrayList<byte[]> partialText = subCbcDecryption(cipher, vector, key_long);
-//        ArrayList<Byte> word = new ArrayList<>();
-//        int blockIndex = 0;
-//        int attackIndexVector = 0;
-//        int attackIndexCipher = 0;
-//        while (key_long.size() < 52 && blockIndex < partialText.size())  //maybe need more condition on length
-//        {
-//            attackIndexVector = 0;
-//            for (byte b : partialText.get(blockIndex)) {
-//                byte cipherByte = cipher[attackIndexCipher];
-//                if ((cipherByte >= 65 && cipherByte <= 90) || (cipherByte >= 97 && cipherByte <= 122)) {
-//                    insertKeyTuple(b, cipher[attackIndexCipher], vector[attackIndexVector]);
-//                    blockSize = 8128;
-//                }
-//                attackIndexVector++;
-//                attackIndexCipher++;
-//            }
-//            //change vector for the next block
-//            ArrayList<byte[]> vectorList = subCbcEncryption(partialText.get(blockIndex), vector, key_long);
-//            for (int i = 0; i < vector.length; i++) {
-//                vector[i] = vectorList.get(0)[i];
-//            }
-//
-//            //next block
-//            blockIndex++;
-//        }
-//        writeKeyToFile(key_long, "C:\\securityExamples\\examples_ascii\\PartC2\\my_key.txt");
-//    }
-//
-//
-//    private static void insertKeyTuple(byte byteToCheck, byte byteCipher, byte byteVector) {
-//        byte[] singleByteVec = {byteVector};
-//        byte[] singleByteToEncrypt = {byteToCheck};
-//        for (int i = 65; i <= 122; i++) {
-//            if ((i >= 65 && i <= 90) || (i >= 97 && i <= 122)) { //between a-z or A-Z
-//                if (!key_long.containsKey((byte) i)) {
-//                    HashMap<Byte, Byte> keyAsSingleByte = new HashMap<>();
-//                    keyAsSingleByte.put((byte) i, byteCipher);
-//                    blockSize = 1;
-//                    ArrayList<byte[]> encrypted = subCbcEncryption(singleByteToEncrypt, singleByteVec, keyAsSingleByte);
-//                    if (encrypted.get(0)[0] == byteCipher) {
-//                        key_long.putAll(keyAsSingleByte);
-//                        return;
-//                    }
-//                }
-//            }
-//        }
-//    }
+    //    private static void knownPlainTextAttack(byte[] cipher, byte[] vector, byte[] cipherMessage, byte[] plainTextMessage) {
+    //        byte plainTextAfterXor;
+    //        for (int i = 0; i < plainTextMessage.length; i++) {
+    //            plainTextAfterXor = (byte) (plainTextMessage[i] ^ vector[i]);
+    //            if ((plainTextAfterXor >= 65 && plainTextAfterXor <= 90) || plainTextAfterXor >= 97 && plainTextAfterXor <= 122) {
+    //                key_long.put(plainTextAfterXor, cipherMessage[i]);
+    //            }
+    //        }
+    //
+    //        ArrayList<byte[]> partialText = subCbcDecryption(cipher, vector, key_long);
+    //        ArrayList<Byte> word = new ArrayList<>();
+    //        int blockIndex = 0;
+    //        int attackIndexVector = 0;
+    //        int attackIndexCipher = 0;
+    //        while (key_long.size() < 52 && blockIndex < partialText.size())  //maybe need more condition on length
+    //        {
+    //            attackIndexVector = 0;
+    //            for (byte b : partialText.get(blockIndex)) {
+    //                byte cipherByte = cipher[attackIndexCipher];
+    //                if ((cipherByte >= 65 && cipherByte <= 90) || (cipherByte >= 97 && cipherByte <= 122)) {
+    //                    insertKeyTuple(b, cipher[attackIndexCipher], vector[attackIndexVector]);
+    //                    blockSize = 8128;
+    //                }
+    //                attackIndexVector++;
+    //                attackIndexCipher++;
+    //            }
+    //            //change vector for the next block
+    //            ArrayList<byte[]> vectorList = subCbcEncryption(partialText.get(blockIndex), vector, key_long);
+    //            for (int i = 0; i < vector.length; i++) {
+    //                vector[i] = vectorList.get(0)[i];
+    //            }
+    //
+    //            //next block
+    //            blockIndex++;
+    //        }
+    //        writeKeyToFile(key_long, "C:\\securityExamples\\examples_ascii\\PartC2\\my_key.txt");
+    //    }
+    //
+    //
+    //    private static void insertKeyTuple(byte byteToCheck, byte byteCipher, byte byteVector) {
+    //        byte[] singleByteVec = {byteVector};
+    //        byte[] singleByteToEncrypt = {byteToCheck};
+    //        for (int i = 65; i <= 122; i++) {
+    //            if ((i >= 65 && i <= 90) || (i >= 97 && i <= 122)) { //between a-z or A-Z
+    //                if (!key_long.containsKey((byte) i)) {
+    //                    HashMap<Byte, Byte> keyAsSingleByte = new HashMap<>();
+    //                    keyAsSingleByte.put((byte) i, byteCipher);
+    //                    blockSize = 1;
+    //                    ArrayList<byte[]> encrypted = subCbcEncryption(singleByteToEncrypt, singleByteVec, keyAsSingleByte);
+    //                    if (encrypted.get(0)[0] == byteCipher) {
+    //                        key_long.putAll(keyAsSingleByte);
+    //                        return;
+    //                    }
+    //                }
+    //            }
+    //        }
+    //    }
+    public static class Pair<L, R> {
+
+        private final L left;
+        private final R right;
+
+        public Pair(L left, R right) {
+            this.left = left;
+            this.right = right;
+        }
+
+        public L getLeft() {
+            return left;
+        }
+
+        public R getRight() {
+            return right;
+        }
+
+        @Override
+        public int hashCode() {
+            return left.hashCode() ^ right.hashCode();
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof Pair))
+                return false;
+            Pair pairo = (Pair) o;
+            return this.left.equals(pairo.getLeft()) &&
+                    this.right.equals(pairo.getRight());
+        }
+    }
 }
