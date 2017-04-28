@@ -38,7 +38,9 @@ public class Main {
 
     public static void main(String[] args) {
 
-        test();
+        //testPartB();
+        //testPartC();
+        testOnAnotherText("C:\\securityExamples\\Corpus\\Alice.txt");
 
         List<String> argsList = Arrays.asList(args);
         String algorithm = argsList.get(argsList.indexOf("-a") + 1);
@@ -70,7 +72,31 @@ public class Main {
         }
     }
 
-    private static void test() {
+    private static void testOnAnotherText(String pathToTextx) {
+        byte[] vector  = readFileToByteArray("C:\\securityExamples\\examples_ascii\\PartC2\\IV_long.txt");
+        byte[] text = readFileToByteArray(pathToTextx);
+        HashMap<Byte, Byte> key = readKeyToHashMap("C:\\securityExamples\\examples_ascii\\examples\\key_Long_Example.txt");
+        String pathForCipher = "C:\\securityExamples\\Corpus\\cipher_example.txt";
+        ArrayList<byte[]> encryption  = subCbcEncryption(text, vector, key);
+        writeByteArrayInArrayListToFile(encryption, pathForCipher);
+
+        //make known cipherPacket and known text packet:
+        byte[] knownPlainText = new byte[blockSize];
+        for(int i=0; i<blockSize;i++)
+        {
+            knownPlainText[i] = text[i];
+        }
+        byte[] knownCiper = encryption.get(0);
+        byte[] cipher = readFileToByteArray(pathForCipher);
+        knownPlainTextAttack(cipher,vector,knownCiper,knownPlainText,"C:\\securityExamples\\Corpus\\my_Key.txt");
+
+    }
+
+    private static void testPartA(){
+
+    }
+    private static void testPartB(){
+        //part b testing
         String pathToKey = "C:\\securityExamples\\examples_ascii\\PartB\\key_short.txt";
         String pathToText = "C:\\securityExamples\\plainMsg_example.txt";
 
@@ -78,48 +104,31 @@ public class Main {
         String pathToDecryptionText = "C:\\securityExamples\\my_text.txt";
         String pathToCipher = "C:\\securityExamples\\examples_ascii\\PartB\\cipher.txt";
         String pathToVectorAttack = "C:\\securityExamples\\examples_ascii\\PartB\\IV_short.txt";
-
+        String pathToweiteKey = "C:\\securityExamples\\examples_ascii\\PartB\\my_Key.txt";
         //part a testing
         HashMap<Byte, Byte> key = readKeyToHashMap(pathToKey);
         byte[] vector = readFileToByteArray(pathToVectorAttack);
         byte[] cipher = readFileToByteArray(pathToCipher);
+        blockSize=10;
+        cipherTextOnlyAttack(cipher, vector,pathToweiteKey,"abcdefgh");
 
-        //                writeByteArrayInArrayListToFile(pathToEncryptionText, subCbcEncryption(pathToText, pathToVector,
-        //                                                                                pathToKey, blockSize));
-        //        writeByteArrayInArrayListToFile(subCbcDecryption(cipher, vector, key, blockSize),pathToDecryptionText);
-
-        //part b testing
-        //        cipherTextOnlyAttack(pathToCipher, pathToVectorAttack);
-        //        writeByteArrayInArrayListToFile(subCbcDecryption(cipher, vector, bestKey, blockSize), pathToDecryptionText);
+        writeByteArrayInArrayListToFile(subCbcDecryption(cipher, vector, bestKey), pathToDecryptionText);
+    }
+    private static void testPartC() {
 
         //part c testing
-        String pathToCAKey = "C:\\securityExamples\\examples_ascii\\PartC\\key_long.txt";
-        String pathToACVector = "C:\\securityExamples\\examples_ascii\\PartC\\IV_long.txt";
-        String pathToCATextToEnc = "C:\\securityExamples\\examples_ascii\\PartC\\known_plain_long.txt";
-        String pathToCaEncr = "C:\\securityExamples\\examples_ascii\\PartC\\C_A_Encrypting.txt";
-        String pathToCAdecry = "C:\\securityExamples\\examples_ascii\\PartC\\C_A_decrypting.txt";
-        byte[] vectorLong = readFileToByteArray(pathToACVector);
-        byte[] textLong = readFileToByteArray(pathToCATextToEnc);
-        HashMap<Byte, Byte> keyLong = readKeyToHashMap(pathToCAKey);
-        //        writeByteArrayInArrayListToFile(subCbcEncryption(textLong, vectorLong,
-        //                                                         keyLong), pathToCaEncr);
-        //
-        //        String pathToCaCipher = "C:\\securityExamples\\examples_ascii\\PartC\\known_cipher.txt";
-        //        writeByteArrayInArrayListToFile(subCbcDecryption(readFileToByteArray(pathToCaCipher), vectorLong,
-        //                                                         keyLong), pathToCAdecry);
-
         String pathToCBcipher = "C:\\securityExamples\\examples_ascii\\PartC2\\unknown_cipher.txt";
         String pathToCBVector = "C:\\securityExamples\\examples_ascii\\PartC2\\IV_long.txt";
         String pathToCBcipherMessage = "C:\\securityExamples\\examples_ascii\\PartC2\\known_cipher.txt";
         String pathToCBplainTextMessage = "C:\\securityExamples\\examples_ascii\\PartC2\\known_plain_long.txt";
-        String pathToKeyLong2 = "C:\\securityExamples\\examples_ascii\\PartC2\\key_long.txt";
+        String pathToWriteKeyLongText = "C:\\securityExamples\\examples_ascii\\PartC2\\my_TextCheck.txt";
         byte[] vectorLong2 = readFileToByteArray(pathToCBVector);
         byte[] cipher2 = readFileToByteArray(pathToCBcipher);
         byte[] plainTextMessage = readFileToByteArray(pathToCBplainTextMessage);
         byte[] cipherMessage = readFileToByteArray(pathToCBcipherMessage);
-        HashMap<Byte, Byte> keyLong2 = readKeyToHashMap(pathToKeyLong2);
-
-        knownPlainTextAttack(cipher2, vectorLong2, cipherMessage, plainTextMessage, "\\src\\kaka.txt");
+        blockSize=8128;
+        knownPlainTextAttack(cipher2, vectorLong2, cipherMessage, plainTextMessage, "\\src\\key_long.txt");
+        writeByteArrayInArrayListToFile(subCbcDecryption(cipher2, vectorLong2, key_long), pathToWriteKeyLongText);
     }
 
     //Part A.a
@@ -266,7 +275,6 @@ public class Main {
             Stream<Byte> capitaleCheck = wordInWords.stream().map(b -> (byte) (b + (byte) 32));
             ArrayList<Byte> capitaleCheckList = new ArrayList<>();
             ArrayList<Byte> captialFirstOnly = new ArrayList<>(wordInWords);
-            captialFirstOnly.set(0, (byte) (wordInWords.get(0) + 32));
             capitaleCheck.parallel().forEachOrdered(capitaleCheckList::add);
 
             if (WORDS.contains(wordInWords) || WORDS.contains(capitaleCheckList) || WORDS.contains(captialFirstOnly))
@@ -282,7 +290,7 @@ public class Main {
 
     //Part C
     private static void knownPlainTextAttack(byte[] cipher, byte[] vector, byte[] cipherMessage, byte[] plainTextMessage,
-                                             String pathToWrite) {
+                                             String pathToWriteKey) {
 
         //Make a partial key out of the cipher message + plainText message using XOR
         byte plainTextAfterXor;
@@ -305,8 +313,6 @@ public class Main {
         //load words dictionary
         loadDictionaryToMemory();
 
-        //if the key is smaller than 42, we haven't found all of the key yet
-        //else, the key is ready to be writte
         int blockIndex = 0;
         int indexOfChange;
         int indexInBlock;
@@ -331,12 +337,8 @@ public class Main {
                 }
                 indexInBlock++;
             }
-            //before go to the next block:
-            // take the maximum of z from each X->(y,z) and put in the final key dictionary
-            //putBestMatch();
 
             //change vector for the next block
-
             vector = Arrays.copyOf(cipherBlock, cipherBlock.length);
             blockIndex++;
         }
@@ -344,10 +346,9 @@ public class Main {
         //if only 8 letters are missing in the key, use brute force
         if (allLettersSet.size() < 9 && !allLettersSet.isEmpty()) {
             String missingKeys = String.valueOf(allLettersSet.toArray());
-            cipherTextOnlyAttack(cipher, initialVector, pathToWrite, missingKeys);
+            cipherTextOnlyAttack(cipher, initialVector, pathToWriteKey, missingKeys);
         }
-
-        //writeKeyToFile(key_long, "C:\\securityExamples\\examples_ascii\\PartC2\\my_key.txt");
+        writeKeyToFile(key_long,pathToWriteKey);
     }
 
     private static void tryFindCorrectWord(ArrayList<Character> word, int indexOfChange,
@@ -360,10 +361,7 @@ public class Main {
             byte xor = (byte) (ch ^ vector[indexInBlock - word.size() + indexOfChange]);  //the xor is The key
             newWord = new ArrayList<>(word);
             newWord.set(indexOfChange, (char) xor);  //we check for word in dictionary so must xor it for the regular word
-
-            //capital first letter
-            ArrayList<Character> newWordCapitalFirst = new ArrayList<>(newWord);
-
+            //check if the word with the letter change is in english
             if (WORDS.contains(charToByteArrys(newWord)) && indexOfChange != 0) {
                 //put in the dictionary the letter
                 cipherLetter = cipherBlock[indexInBlock - word.size() + indexOfChange]; //the letter in the cipher is the value. X->Y (in cipher is the Y)
@@ -372,12 +370,11 @@ public class Main {
                 firstFoundWord = newWord;
             }
         }
-
+        //only if there is one letter that match to the change - it is for sure in the key.
         if (countMatchLetters == 1 && !key_longAsChar.containsKey(letterMatch)) {
             key_long.put((byte) (letterMatch + 0), cipherLetter);
             key_longAsChar.put(letterMatch, (char) cipherLetter);
             my_key_long.put(letterMatch, (char) cipherLetter);
-            countKeyChange++;
             allLettersSet.remove(letterMatch);
         }
     }
@@ -426,17 +423,6 @@ public class Main {
         return toReturn;
     }
 
-    private static void putInDictionaryLetter(byte key, byte cipherLetter) {
-        int valueOfLetterInDic = ((HashMap<Byte, Integer>) letterChangedCount.values()).get(cipherLetter);
-        HashMap<Byte, Integer> apply = new HashMap<>();
-        if (valueOfLetterInDic > 0) // if the letter exist
-        {
-            apply.put(cipherLetter, valueOfLetterInDic + 1);
-        } else {
-            apply.put(cipherLetter, 1);
-        }
-        letterChangedCount.put(key, apply);
-    }
 
     private static int indexOfChangeIfOnlyOne(ArrayList<Character> word, byte[] vector, byte[] cipherBlock,
                                               int indexInBlock) {
@@ -639,102 +625,4 @@ public class Main {
         return set;
     }
 
-    // PART C - OLD
-
-    //    private static void knownPlainTextAttack(byte[] cipher, byte[] vector, byte[] cipherMessage, byte[] plainTextMessage) {
-    //        byte plainTextAfterXor;
-    //        for (int i = 0; i < plainTextMessage.length; i++) {
-    //            plainTextAfterXor = (byte) (plainTextMessage[i] ^ vector[i]);
-    //            if ((plainTextAfterXor >= 65 && plainTextAfterXor <= 90) || plainTextAfterXor >= 97 && plainTextAfterXor <= 122) {
-    //                key_long.put(plainTextAfterXor, cipherMessage[i]);
-    //            }
-    //        }
-    //
-    //        ArrayList<byte[]> partialText = subCbcDecryption(cipher, vector, key_long);
-    //        ArrayList<Byte> word = new ArrayList<>();
-    //        int blockIndex = 0;
-    //        int attackIndexVector = 0;
-    //        int attackIndexCipher = 0;
-    //        while (key_long.size() < 52 && blockIndex < partialText.size())  //maybe need more condition on length
-    //        {
-    //            attackIndexVector = 0;
-    //            for (byte b : partialText.get(blockIndex)) {
-    //                byte cipherByte = cipher[attackIndexCipher];
-    //                if ((cipherByte >= 65 && cipherByte <= 90) || (cipherByte >= 97 && cipherByte <= 122)) {
-    //                    insertKeyTuple(b, cipher[attackIndexCipher], vector[attackIndexVector]);
-    //                    blockSize = 8128;
-    //                }
-    //                attackIndexVector++;
-    //                attackIndexCipher++;
-    //            }
-    //            //change vector for the next block
-    //            ArrayList<byte[]> vectorList = subCbcEncryption(partialText.get(blockIndex), vector, key_long);
-    //            for (int i = 0; i < vector.length; i++) {
-    //                vector[i] = vectorList.get(0)[i];
-    //            }
-    //
-    //            //next block
-    //            blockIndex++;
-    //        }
-    //        writeKeyToFile(key_long, "C:\\securityExamples\\examples_ascii\\PartC2\\my_key.txt");
-    //    }
-    //
-    //
-    //    private static void insertKeyTuple(byte byteToCheck, byte byteCipher, byte byteVector) {
-    //        byte[] singleByteVec = {byteVector};
-    //        byte[] singleByteToEncrypt = {byteToCheck};
-    //        for (int i = 65; i <= 122; i++) {
-    //            if ((i >= 65 && i <= 90) || (i >= 97 && i <= 122)) { //between a-z or A-Z
-    //                if (!key_long.containsKey((byte) i)) {
-    //                    HashMap<Byte, Byte> keyAsSingleByte = new HashMap<>();
-    //                    keyAsSingleByte.put((byte) i, byteCipher);
-    //                    blockSize = 1;
-    //                    ArrayList<byte[]> encrypted = subCbcEncryption(singleByteToEncrypt, singleByteVec, keyAsSingleByte);
-    //                    if (encrypted.get(0)[0] == byteCipher) {
-    //                        key_long.putAll(keyAsSingleByte);
-    //                        return;
-    //                    }
-    //                }
-    //            }
-    //        }
-    //    }//    private static void putBestMatch() {
-    //        //iterate on all letters in potential keys Map
-    //        byte valueForFinalKey = -1;
-    //        for (Map.Entry<Byte, HashMap<Byte, Integer>> entry : letterChangedCount.entrySet()) {
-    //            byte keyLetter = entry.getKey();
-    //            HashMap<Byte, Integer> keyLetterMap = entry.getValue();
-    //            int maximum = 0;
-    //            //for wach letter check the best key
-    //            for (Map.Entry<Byte, Integer> entryInMap : keyLetterMap.entrySet()) {
-    //                int keyletterValue = entryInMap.getValue();
-    //                if (maximum < keyletterValue) {
-    //                    valueForFinalKey = entryInMap.getKey();
-    //                    maximum = keyletterValue;
-    //                }
-    //            }
-    //            if (valueForFinalKey != -1)
-    //                key_long.put(keyLetter, valueForFinalKey);
-    //        }
-    //
-    //}
-
-    //dividing byte[] to arrayList of byte[]
-    //when all the byte[] elements in size of BlockSize
-    //    private static ArrayList<byte[]> divideToArrayListOfBytes(byte[] byteArray) {
-    //        ArrayList<byte[]> divided = new ArrayList<>();
-    //        byte[] dividedElement = new byte[blockSize];
-    //        int indexing = 0;
-    //        for (byte b : byteArray) {
-    //            if (indexing < blockSize) {
-    //                dividedElement[indexing] = b;
-    //                indexing++;
-    //            } else {
-    //                divided.add(dividedElement);
-    //                dividedElement = new byte[blockSize];
-    //                dividedElement[0] = b;
-    //                indexing = 1;
-    //            }
-    //        }
-    //        return divided;
-    //    }
 }
