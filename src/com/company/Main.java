@@ -2,6 +2,7 @@ package com.company;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
@@ -38,64 +39,88 @@ public class Main {
 
     public static void main(String[] args) {
 
-        //testPartB();
-        //testPartC();
-        testOnAnotherText("C:\\securityExamples\\Corpus\\Alice.txt");
+        String algorithm;
+        String action;
+        String pathToWrite;
+        String pathToknownPlainText;
+        String pathToknownCipher;
+        String pathToKey;
+        HashMap<Byte, Byte> key;
+        byte[] text;
+        byte[] vector;
+        byte[] knownPlainText;
+        byte[] knownCipher;
 
-        List<String> argsList = Arrays.asList(args);
-        String algorithm = argsList.get(argsList.indexOf("-a") + 1);
-        String action = argsList.get(argsList.indexOf("-c") + 1);
-        String pathToText = argsList.get(argsList.indexOf("-t") + 1);
-        String pathToKey = argsList.get(argsList.indexOf("-k") + 1);
-        String pathToVector = argsList.get(argsList.indexOf("-v") + 1);
-        String pathToWrite = argsList.get(argsList.indexOf("-o") + 1);
+        //handle arguments
+        try {
+            List<String> argsList = Arrays.asList(args);
+            algorithm = argsList.get(argsList.indexOf("-a") + 1);
+            action = argsList.get(argsList.indexOf("-c") + 1);
+            String pathToText = argsList.get(argsList.indexOf("-t") + 1);
+            pathToKey = argsList.get(argsList.indexOf("-k") + 1);
+            String pathToVector = argsList.get(argsList.indexOf("-v") + 1);
+            pathToWrite = argsList.get(argsList.indexOf("-o") + 1);
+            pathToknownPlainText = argsList.get(argsList.indexOf("-kp") + 1);
+            pathToknownCipher = argsList.get(argsList.indexOf("-kc") + 1);
 
-        byte[] text = readFileToByteArray(pathToText);
-        byte[] vector = readFileToByteArray(pathToVector);
-        HashMap<Byte, Byte> key = !pathToKey.equals("-a") ? readKeyToHashMap(pathToKey) : null;
+            text = readFileToByteArray(pathToText);
+            vector = readFileToByteArray(pathToVector);
+        } catch (Exception e) {
+            System.out.print("Bad input");
+            return;
+        }
 
+        //set the block size according to algorithm
         if (algorithm.equals("sub_cbc_10")) {
             blockSize = 10;
         } else if (algorithm.equals("sub_cbc_52")) {
             blockSize = 8128;
         }
-        if (action.equals("encryption")) {
-            writeByteArrayInArrayListToFile(subCbcEncryption(text, vector, key), pathToWrite);
-            if (action.equals("decryption")) {
+
+        try {
+            if (action.equals("encryption")) {
+                key = readKeyToHashMap(pathToKey);
+                writeByteArrayInArrayListToFile(subCbcEncryption(text, vector, key), pathToWrite);
+            } else if (action.equals("decryption")) {
+                key = readKeyToHashMap(pathToKey);
                 writeByteArrayInArrayListToFile(subCbcDecryption(text, vector, key), pathToWrite);
             }
+
             if (action.equals("attack") && algorithm.equals("sub_cbc_10")) {
                 cipherTextOnlyAttack(text, vector, pathToWrite, "abcdefgh");
             } else if (action.equals("attack") && algorithm.equals("sub_cbc_52")) {
-                // part C.2
+                knownPlainText = readFileToByteArray(pathToknownPlainText);
+                knownCipher = readFileToByteArray(pathToknownCipher);
+                knownPlainTextAttack(text, vector, knownCipher, knownPlainText, pathToWrite);
             }
+        } catch (Exception e) {
+            System.out.print("Error occurred. Please check input and try again");
         }
     }
 
     private static void testOnAnotherText(String pathToTextx) {
-        byte[] vector  = readFileToByteArray("C:\\securityExamples\\examples_ascii\\PartC2\\IV_long.txt");
+        byte[] vector = readFileToByteArray("C:\\securityExamples\\examples_ascii\\PartC2\\IV_long.txt");
         byte[] text = readFileToByteArray(pathToTextx);
         HashMap<Byte, Byte> key = readKeyToHashMap("C:\\securityExamples\\examples_ascii\\examples\\key_Long_Example.txt");
         String pathForCipher = "C:\\securityExamples\\Corpus\\cipher_example.txt";
-        ArrayList<byte[]> encryption  = subCbcEncryption(text, vector, key);
+        ArrayList<byte[]> encryption = subCbcEncryption(text, vector, key);
         writeByteArrayInArrayListToFile(encryption, pathForCipher);
 
         //make known cipherPacket and known text packet:
         byte[] knownPlainText = new byte[blockSize];
-        for(int i=0; i<blockSize;i++)
-        {
+        for (int i = 0; i < blockSize; i++) {
             knownPlainText[i] = text[i];
         }
         byte[] knownCiper = encryption.get(0);
         byte[] cipher = readFileToByteArray(pathForCipher);
-        knownPlainTextAttack(cipher,vector,knownCiper,knownPlainText,"C:\\securityExamples\\Corpus\\my_Key.txt");
+        knownPlainTextAttack(cipher, vector, knownCiper, knownPlainText, "C:\\securityExamples\\Corpus\\my_Key.txt");
+    }
+
+    private static void testPartA() {
 
     }
 
-    private static void testPartA(){
-
-    }
-    private static void testPartB(){
+    private static void testPartB() {
         //part b testing
         String pathToKey = "C:\\securityExamples\\examples_ascii\\PartB\\key_short.txt";
         String pathToText = "C:\\securityExamples\\plainMsg_example.txt";
@@ -109,11 +134,12 @@ public class Main {
         HashMap<Byte, Byte> key = readKeyToHashMap(pathToKey);
         byte[] vector = readFileToByteArray(pathToVectorAttack);
         byte[] cipher = readFileToByteArray(pathToCipher);
-        blockSize=10;
-        cipherTextOnlyAttack(cipher, vector,pathToweiteKey,"abcdefgh");
+        blockSize = 10;
+        cipherTextOnlyAttack(cipher, vector, pathToweiteKey, "abcdefgh");
 
         writeByteArrayInArrayListToFile(subCbcDecryption(cipher, vector, bestKey), pathToDecryptionText);
     }
+
     private static void testPartC() {
 
         //part c testing
@@ -126,7 +152,7 @@ public class Main {
         byte[] cipher2 = readFileToByteArray(pathToCBcipher);
         byte[] plainTextMessage = readFileToByteArray(pathToCBplainTextMessage);
         byte[] cipherMessage = readFileToByteArray(pathToCBcipherMessage);
-        blockSize=8128;
+        blockSize = 8128;
         knownPlainTextAttack(cipher2, vectorLong2, cipherMessage, plainTextMessage, "\\src\\key_long.txt");
         writeByteArrayInArrayListToFile(subCbcDecryption(cipher2, vectorLong2, key_long), pathToWriteKeyLongText);
     }
@@ -198,6 +224,8 @@ public class Main {
     //part B - brute force attack
     private static void cipherTextOnlyAttack(byte[] cipher, byte[] vector, String pathToWrite, String missingKeys) {
         loadDictionaryToMemory();
+
+        System.out.println("Trying to find key..");
 
         char[] keyValue = missingKeys.toCharArray();
         HashMap<Byte, Byte> potentialKeyMap = null;
@@ -348,7 +376,7 @@ public class Main {
             String missingKeys = String.valueOf(allLettersSet.toArray());
             cipherTextOnlyAttack(cipher, initialVector, pathToWriteKey, missingKeys);
         }
-        writeKeyToFile(key_long,pathToWriteKey);
+        writeKeyToFile(key_long, pathToWriteKey);
     }
 
     private static void tryFindCorrectWord(ArrayList<Character> word, int indexOfChange,
@@ -423,7 +451,6 @@ public class Main {
         return toReturn;
     }
 
-
     private static int indexOfChangeIfOnlyOne(ArrayList<Character> word, byte[] vector, byte[] cipherBlock,
                                               int indexInBlock) {
         int counter = 0;
@@ -446,7 +473,20 @@ public class Main {
 
     private static void loadDictionaryToMemory() {
         //load english dictionary to byte array
-        byte[] words = readFileToByteArray("src/com/company/dictionary.txt");
+        String pathToDic = new File("").getAbsolutePath() + "\\dictionary.txt";
+
+        //        String path = Main.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+        //        try {
+        //            pathToDic = URLDecoder.decode(path, "UTF-8") + "dictionary.txt";
+        //        } catch (UnsupportedEncodingException e) {
+        //            e.printStackTrace();
+        //        }
+        //        pathToDic = Main.class.getProtectionDomain().getCodeSource().getLocation() +
+        //                "dictionary.txt";
+        //        if(pathToDic.substring(0,5).equals("file:")){
+        //            pathToDic = pathToDic.replace("file:", "");
+        //        }
+        byte[] words = readFileToByteArray(pathToDic);
 
         //make int array list and remove empty entries
         ArrayList<Byte> wordsIntList = new ArrayList<>();
@@ -470,8 +510,7 @@ public class Main {
 
     //write key to file
     private static void writeKeyToFile(HashMap<Byte, Byte> key, String pathToWrite) {
-        //        writeByteArrayListToFile(new ArrayList<>(key.keySet()), path);
-        //        writeByteArrayListToFile(new ArrayList<>(key.values()), path);
+        System.out.println("Writing key to " + pathToWrite);
         ArrayList<Byte> toWriteList = new ArrayList<>();
         key.entrySet().forEach(e -> {
             toWriteList.add(e.getKey());
@@ -624,5 +663,4 @@ public class Main {
         }
         return set;
     }
-
 }
