@@ -2,10 +2,13 @@ package com.company;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -94,8 +97,19 @@ public class Main {
                 knownPlainTextAttack(text, vector, knownCipher, knownPlainText, pathToWrite);
             }
         } catch (Exception e) {
-            System.out.print("Error occurred. Please check input and try again");
+            System.out.println("Error occurred. Please check input and try again");
+            System.out.println(e.getMessage());
         }
+    }
+
+    public static byte[] toByteArrayUsingJava(InputStream is) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        int reads = is.read();
+        while (reads != -1) {
+            baos.write(reads);
+            reads = is.read();
+        }
+        return baos.toByteArray();
     }
 
     private static void testOnAnotherText(String pathToTextx) {
@@ -245,7 +259,7 @@ public class Main {
             //check the key
             //take only the first 2000 bytes
             ArrayList<Byte> first100PacketsFromCipher = new ArrayList<>();
-            for (int i = 0; i <= 2500; i++) {
+            for (int i = 0; i <= 2250; i++) {
                 if (i < cipher.length) {
                     first100PacketsFromCipher.add(cipher[i]);
                 }
@@ -373,7 +387,7 @@ public class Main {
 
         //if only 8 letters are missing in the key, use brute force
         if (allLettersSet.size() < 9 && !allLettersSet.isEmpty()) {
-            String missingKeys = String.valueOf(allLettersSet.toArray());
+            String missingKeys = hashSetToArray(allLettersSet);
             cipherTextOnlyAttack(cipher, initialVector, pathToWriteKey, missingKeys);
         }
         writeKeyToFile(key_long, pathToWriteKey);
@@ -475,18 +489,13 @@ public class Main {
         //load english dictionary to byte array
         String pathToDic = new File("").getAbsolutePath() + "\\dictionary.txt";
 
-        //        String path = Main.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        //        try {
-        //            pathToDic = URLDecoder.decode(path, "UTF-8") + "dictionary.txt";
-        //        } catch (UnsupportedEncodingException e) {
-        //            e.printStackTrace();
-        //        }
-        //        pathToDic = Main.class.getProtectionDomain().getCodeSource().getLocation() +
-        //                "dictionary.txt";
-        //        if(pathToDic.substring(0,5).equals("file:")){
-        //            pathToDic = pathToDic.replace("file:", "");
-        //        }
-        byte[] words = readFileToByteArray(pathToDic);
+        byte[] words = null;
+        try {
+            words = readFileFromJar();
+        } catch (IOException e) {
+            System.out.println("Error reading dictionary");
+            e.printStackTrace();
+        }
 
         //make int array list and remove empty entries
         ArrayList<Byte> wordsIntList = new ArrayList<>();
@@ -506,6 +515,20 @@ public class Main {
                 word = new ArrayList<>();
             }
         }
+    }
+
+    private static byte[] readFileFromJar() throws IOException {
+        URL url = Main.class.getResource("/dictionary.txt");
+        InputStream stream = null;
+        try {
+            stream = url.openStream();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        byte[] words = toByteArrayUsingJava(stream);
+
+        return words;
     }
 
     //write key to file
@@ -662,5 +685,13 @@ public class Main {
             set.add(a + "");
         }
         return set;
+    }
+
+    private static String hashSetToArray(HashSet<Character> allLettersSet) {
+        String ans = "";
+        for (Character s : allLettersSet){
+            ans += s;
+        }
+        return ans;
     }
 }
